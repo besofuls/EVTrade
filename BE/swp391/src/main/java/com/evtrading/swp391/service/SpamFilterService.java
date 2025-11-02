@@ -74,18 +74,7 @@ public class SpamFilterService {
             result.reasons.add("Too many posts in 24h");
         }
 
-        // 4) Price anomaly: compare to average price in category
-        if (listing.getCategory() != null) {
-            List<Listing> sameCategory = listingRepository.findAllByCategoryCategoryID(listing.getCategory().getCategoryID());
-            double avg = sameCategory.stream().filter(l -> l.getPrice() != null).mapToDouble(l -> l.getPrice().doubleValue()).average().orElse(0.0);
-            if (avg > 0) {
-                double price = listing.getPrice() != null ? listing.getPrice().doubleValue() : 0.0;
-                if (price > 0 && (price < avg * 0.2 || price > avg * 5)) {
-                    result.flagged = true;
-                    result.reasons.add("Price anomalous compared to category average");
-                }
-            }
-        }
+        // Price anomaly check removed — no longer flagging by price
 
         // 5) Banned keywords in title/description
         String combined = (listing.getTitle() == null ? "" : listing.getTitle()).toLowerCase() + " " + (listing.getDescription() == null ? "" : listing.getDescription()).toLowerCase();

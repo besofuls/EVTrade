@@ -1,5 +1,5 @@
-{
-    "configurations": [
+ {
+  "configurations": [
         {
             "type": "java",
             "name": "Spring Boot-Swp391Application<swp391>",
@@ -13,4 +13,5 @@
 
         }
     ]
-}
+ }
+    
