@@ -9,12 +9,7 @@ public final class SecurityPaths {
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
-    private static final String[] PUBLIC_ENDPOINTS = new String[] {
-            "/api/auth/**",
-            "/swagger-ui/**",
-            "/v3/api-docs/**",
-        // DocuSeal webhook callback (no auth; verified by header secret)
-        "/api/contracts/webhook"
+
     private static final String[] AUTH_ENDPOINTS = new String[] {
         "/api/auth/**"
     };
@@ -26,7 +21,9 @@ public final class SecurityPaths {
         "/api/vnpay/callback",
         "/api/listings/search",
         "/api/brands",
-        "/api/categories"
+        "/api/categories",
+        // DocuSeal webhook callback (no auth; verified by header secret)
+        "/api/contracts/webhook"
     };
 
     private static final String[] MEMBER_ENDPOINTS = new String[] {
