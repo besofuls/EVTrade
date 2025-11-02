@@ -277,6 +277,15 @@
   color: #FFA500;
 }
 
+/* login.css */
+.nsm7Bb-HzV7m-LgbsSe {
+  border-radius: 8px !important;
+  min-width: 180px;
+  height: 48px !important;
+  box-shadow: none !important;
+  font-size: 15px !important;
+}
+
 /* Desktop Optimizations */
 @media (min-width: 1200px) {
   .back-home-btn {
@@ -398,4 +407,5 @@
     right: 15px;
     font-size: 12px;
   }
+  
 }

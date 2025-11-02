@@ -40,14 +40,18 @@ public class JwtProvider {
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String createToken(Integer userId, String email, String role) {
+    public String createToken(Integer userId, String username, String email, String role) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
+        String safeUsername = (username == null || username.isBlank())
+                ? (email != null && email.contains("@") ? email.substring(0, email.indexOf('@')) : "user_" + userId)
+                : username;
+
         return Jwts.builder()
                 .setSubject(String.valueOf(userId))
-                .claim("email", new String(email.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8))
-                .claim("username", new String(email.split("@")[0].getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8)) 
+                .claim("email", email)
+                .claim("username", safeUsername)
                 .claim("role", role)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)

@@ -1,0 +1,112 @@
+.admin-dashboard-main {
+  padding: 24px;
+}
+
+.admin-dashboard-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 15px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.admin-table th {
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-user-btn {
+  padding: 7px 18px;
+  border-radius: 7px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.25);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 32px;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.12);
+  min-width: 320px;
+  max-width: 90vw;
+}
+
+.payments-modal {
+  width: min(900px, 95vw);
+}
+
+.payment-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 18px;
+  margin-bottom: 16px;
+  font-size: 15px;
+  color: #374151;
+}
+
+.payment-history-section {
+  margin-top: 12px;
+}
+
+.payment-history-table-wrapper {
+  max-height: 340px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.payment-history-table {
+  width: 100%;
+  margin: 0;
+  table-layout: auto;
+}
+
+.payment-history-table th,
+.payment-history-table td {
+  white-space: nowrap;
+}
+
+.payment-history-table th {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  z-index: 1;
+}
+
+.modal-close-btn {
+  background: #6b7280;
+  color: #fff;
+  margin-top: 18px;
+  align-self: flex-end;
+}

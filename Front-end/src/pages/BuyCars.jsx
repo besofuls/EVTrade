@@ -1,216 +1,161 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import defaultImage from '../assets/VinFast_VF5_Plus.jpg';
-import Header from '../components/Header';
-import API_ENDPOINTS from '../services/apiService';
-import './BuyCars.css';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Header from "../components/Header";
+import apiService from "../services/apiService";
+import "./BuyCars.css";
 
 function BuyCars() {
   const navigate = useNavigate();
 
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedBrand, setSelectedBrand] = useState('all');
+  // Bộ lọc
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedBrand, setSelectedBrand] = useState("all");
   const [priceRange, setPriceRange] = useState([5000000, 2000000000]);
 
-  const [listings, setListings] = useState([]);
-  const [brands, setBrands] = useState([]);
+  // Dữ liệu
   const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [listings, setListings] = useState([]);
+  const [total, setTotal] = useState(0);
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  // thêm state để giữ tên của top 5 để xử lý "khác"
+  const [topBrandNames, setTopBrandNames] = useState(new Set());
+  const [topCategoryNames, setTopCategoryNames] = useState(new Set());
 
-  const [sortOption, setSortOption] = useState('newest');
+  // Trạng thái
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const token = localStorage.getItem('authToken');
-
-  const normalizeBrands = (raw) => {
-    const arr = Array.isArray(raw) ? raw : raw?.content ?? [];
-    if (!arr.length) return [];
-    // Map to { id, name, ...original }
-    return arr.map((b, i) => ({
-      ...b,
-      id: b.id ?? b.brandID ?? b.brandId ?? String(b.brandName ?? `brand-${i}`),
-      name: b.brandName ?? b.name ?? String(b.id ?? `brand-${i}`)
-    }));
-  };
-
-  const normalizeCategories = (raw) => {
-    const arr = Array.isArray(raw) ? raw : raw?.content ?? [];
-    if (!arr.length) return [];
-    return arr.map((c, i) => ({
-      ...c,
-      id: c.id ?? c.categoryID ?? c.categoryId ?? String(c.categoryName ?? `cat-${i}`),
-      name: c.categoryName ?? c.name ?? String(c.id ?? `cat-${i}`)
-    }));
-  };
-
-  const normalizeListings = (raw) => {
-    const arr = Array.isArray(raw) ? raw : raw?.content ?? [];
-    return arr.map((p, i) => {
-      const id = p.id ?? p.uuid ?? p.productId ?? p.productID ?? p.listingId ?? `product-${i}`;
-      const title = p.title ?? p.name ?? p.productTitle ?? p.listingTitle ?? '';
-      const price = p.price ?? p.pricing?.price ?? p.listingPrice ?? 0;
-
-      // Possible image fields returned by backend
-      const imgs =
-        p.images ||
-        p.imagesList ||
-        p.listingImages ||
-        p.listing_image ||
-        p.listing_image_list ||
-        p.listingImageList ||
-        p.imageUrls ||
-        [];
-
-      let displayImage = defaultImage;
-
-      if (Array.isArray(imgs) && imgs.length) {
-        // prefer explicit primary flag, else first item
-        const primary = imgs.find((im) => im.is_primary || im.primary || im.isPrimary) || imgs[0];
-        // primary may be string or object { url | path | imageUrl }
-        if (primary) {
-          if (typeof primary === 'string') displayImage = primary;
-          else displayImage = primary.url || primary.path || primary.imageUrl || primary.image || defaultImage;
-        }
-      } else if (typeof imgs === 'string' && imgs) {
-        displayImage = imgs;
-      } else if (p.primaryImageUrl) {
-        displayImage = p.primaryImageUrl;
-      } else if (p.vehicle?.imageUrl) {
-        displayImage = p.vehicle.imageUrl;
-      }
-
-      const categoryName = p.categoryName ?? p.category?.categoryName ?? p.category?.name ?? '';
-      return { ...p, id, title, price, displayImage, categoryName };
-    });
-  };
-
+  // Lấy danh sách bài đăng để lọc top brand/category
   useEffect(() => {
-    if (!token) {
-      navigate('/login');
-    }
-  }, [token, navigate]);
-
-  useEffect(() => {
-    const fetchFilters = async () => {
+    async function fetchFiltersAndListings() {
       try {
-        const headers = {
-          Authorization: token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        };
-
-        const [brandsRes, catsRes] = await Promise.all([
-          fetch(API_ENDPOINTS.get_all_brands, { headers }),
-          fetch(API_ENDPOINTS.get_all_categories, { headers })
+        setLoading(true);
+        // Lấy tất cả brands, categories và bài đăng đang active
+        const [brandsData, categoriesData, listingsData] = await Promise.all([
+          apiService.getBrands(),
+          apiService.getCategories(),
+          apiService.searchProductPosts({
+            status: "ACTIVE",
+            page: 0,
+            size: 1000,
+          }),
         ]);
+        const posts = listingsData.content || [];
 
-        // parse safely
-        const brandsData = await safeJson(brandsRes);
-        const catsData = await safeJson(catsRes);
+        // Đếm số lượng bài đăng theo brand/category
+        const brandCount = {};
+        const categoryCount = {};
+        posts.forEach((item) => {
+          brandCount[item.brandName] = (brandCount[item.brandName] || 0) + 1;
+          categoryCount[item.categoryName] =
+            (categoryCount[item.categoryName] || 0) + 1;
+        });
 
-        // handle permission-in-body cases
-        if (isPermissionError(brandsData) || isPermissionError(catsData)) {
-          localStorage.removeItem('authToken');
-          setError('Quyền truy cập bị từ chối. Vui lòng đăng nhập lại.');
-          navigate('/login');
-          return;
-        }
+        // Lọc top 5 brand
+        const topBrands = brandsData
+          .map((b) => ({
+            ...b,
+            count: brandCount[b.brandName] || 0,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
 
-        if (!brandsRes.ok) throw new Error(brandsData?.message || 'Không thể tải danh sách hãng xe');
-        if (!catsRes.ok) throw new Error(catsData?.message || 'Không thể tải danh sách danh mục');
+        // Lọc top 5 category
+        const topCategories = categoriesData
+          .map((c) => ({
+            ...c,
+            count: categoryCount[c.categoryName] || 0,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
 
-        setBrands(normalizeBrands(brandsData));
-        setCategories(normalizeCategories(catsData));
-        setError(null);
+        setBrands(topBrands);
+        setCategories(topCategories);
+
+        // lưu tên top để xử lý ô "Khác"
+        setTopBrandNames(new Set(topBrands.map((b) => b.brandName)));
+        setTopCategoryNames(new Set(topCategories.map((c) => c.categoryName)));
       } catch (err) {
-        console.error('fetchFilters error:', err);
-        setError(err.message || 'Lỗi khi tải bộ lọc');
-      }
-    };
-
-    if (token) fetchFilters();
-  }, [token, navigate]);
-
-  useEffect(() => {
-    const fetchListings = async () => {
-      setIsLoading(true);
-      try {
-        const paramsObj = {
-          page: 0,
-          size: 20,
-          status: 'APPROVED'
-        };
-        if (selectedCategory !== 'all') paramsObj.categoryId = selectedCategory;
-        if (selectedBrand !== 'all') paramsObj.brandId = selectedBrand;
-        paramsObj.minPrice = priceRange[0];
-        paramsObj.maxPrice = priceRange[1];
-
-        const url = API_ENDPOINTS.getAll_products_post(paramsObj);
-        const headers = {
-          Authorization: token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        };
-
-        const res = await fetch(url, { method: 'GET', headers });
-        const data = await safeJson(res);
-
-        if (isPermissionError(data)) {
-          localStorage.removeItem('authToken');
-          setError('Quyền truy cập bị từ chối. Vui lòng đăng nhập lại.');
-          navigate('/login');
-          return;
-        }
-
-        if (!res.ok) throw new Error(data?.message || 'Lỗi khi tải dữ liệu');
-
-        setListings(normalizeListings(data));
-        setError(null);
-      } catch (err) {
-        console.error('fetchListings error:', err);
-        setError(err.message || 'Không thể tải danh sách sản phẩm');
+        setError("Không thể tải bộ lọc");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
-    };
-
-    if (token) fetchListings();
-  }, [token, selectedCategory, selectedBrand, priceRange, navigate]);
-
-  // helper utils
-  const safeJson = async (res) => {
-    try {
-      return await res.json();
-    } catch {
-      return null;
     }
-  };
+    fetchFiltersAndListings();
+  }, []);
 
-  const isPermissionError = (body) => {
-    if (!body) return false;
-    return body.code === 403 || body.msg === 'permission error' || body.error === 'exceptions.UserAuthError';
-  };
+  // Lấy danh sách bài đăng theo bộ lọc
+  useEffect(() => {
+    async function fetchListings() {
+      setLoading(true);
+      setError("");
+      try {
+        const needClientFilter =
+          selectedBrand === "other" || selectedCategory === "other";
 
-  const formatPrice = (price) => new Intl.NumberFormat('vi-VN').format(price) + ' đ';
+        // Lấy tổng số sản phẩm trước
+        const firstPageParams = {
+          status: "ACTIVE",
+          page: 0,
+          size: 50, // lấy nhiều nhất có thể
+          minPrice: priceRange[0],
+          maxPrice: priceRange[1],
+        };
+        if (selectedCategory !== "all" && selectedCategory !== "other")
+          firstPageParams.categoryId = selectedCategory;
+        if (selectedBrand !== "all" && selectedBrand !== "other")
+          firstPageParams.brandId = selectedBrand;
+
+        const firstPage = await apiService.searchProductPosts(firstPageParams);
+        let allContent = firstPage.content || [];
+        const totalPages = firstPage.totalPages || 1;
+
+        // Nếu còn nhiều trang, gọi tiếp các trang còn lại
+        for (let page = 1; page < totalPages; page++) {
+          const params = { ...firstPageParams, page };
+          const nextPage = await apiService.searchProductPosts(params);
+          allContent = allContent.concat(nextPage.content || []);
+        }
+
+        // Nếu chọn "other" cho brand/category, loại bỏ các item thuộc top 5 tương ứng
+        if (selectedBrand === "other" && topBrandNames.size > 0) {
+          allContent = allContent.filter((it) => !topBrandNames.has(it.brandName));
+        }
+        if (selectedCategory === "other" && topCategoryNames.size > 0) {
+          allContent = allContent.filter(
+            (it) => !topCategoryNames.has(it.categoryName)
+          );
+        }
+        
+        setListings(allContent);
+        setTotal(allContent.length);
+      } catch (err) {
+        setError(err.message || "Không thể tải sản phẩm");
+        setListings([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchListings();
+  }, [
+    selectedCategory,
+    selectedBrand,
+    priceRange,
+    topBrandNames,
+    topCategoryNames,
+  ]);
+
+  // Hiển thị giá ngắn gọn
   const formatPriceShort = (price) => {
-    if (price >= 1000000000) return (price / 1000000000).toFixed(1) + ' tỷ';
-    if (price >= 1000000) return (price / 1000000).toFixed(0) + ' triệu';
-    return price.toLocaleString('vi-VN') + ' đ';
+    if (price >= 1000000000) return (price / 1000000000).toFixed(1) + " tỷ";
+    if (price >= 1000000) return (price / 1000000).toFixed(0) + " triệu";
+    return price.toLocaleString("vi-VN") + " đ";
   };
 
-  const getSortedListings = (items) => {
-    switch (sortOption) {
-      case 'price-asc':
-        return [...items].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-      case 'price-desc':
-        return [...items].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-      case 'newest':
-        return [...items].sort((a, b) => 
-          new Date(b.created_at ?? b.createdAt ?? 0) - new Date(a.created_at ?? a.createdAt ?? 0)
-        );
-      default:
-        return items;
-    }
-  };
+  // Hiển thị giá đầy đủ
+  const formatPrice = (price) =>
+    new Intl.NumberFormat("vi-VN").format(price) + " đ";
 
   return (
     <>
@@ -218,119 +163,224 @@ function BuyCars() {
       <div className="buy-cars-page">
         <div className="container-fluid">
           <div className="buy-cars-content">
+            {/* Sidebar bộ lọc */}
             <aside className="filter-sidebar">
               <div className="filter-section">
                 <h3>Danh mục</h3>
                 <div className="filter-options">
                   <label className="filter-option">
-                    <input type="radio" name="category" value="all" checked={selectedCategory === 'all'} onChange={(e) => setSelectedCategory('all')} />
+                    <input
+                      type="radio"
+                      value="all"
+                      checked={selectedCategory === "all"}
+                      name="category"
+                      onChange={() => setSelectedCategory("all")}
+                    />
                     <span>Tất cả</span>
                   </label>
+
                   {categories.map((c) => (
-                    <label key={`cat-${c.id}`} className="filter-option">
+                    <label key={c.categoryId} className="filter-option">
                       <input
                         type="radio"
+                        value={c.categoryId}
+                        checked={
+                          String(selectedCategory) === String(c.categoryId)
+                        }
                         name="category"
-                        value={String(c.id)}
-                        checked={String(selectedCategory) === String(c.id)}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        onChange={() => setSelectedCategory(c.categoryId)}
                       />
-                      <span>{c.name}</span>
+                      <span>
+                        {c.categoryName}{" "}
+                        <span style={{ color: "#999", fontSize: "12px" }}>
+                          ({c.count})
+                        </span>
+                      </span>
                     </label>
                   ))}
+
+                  {/* ô "Khác" cho category */}
+                  <label className="filter-option">
+                    <input
+                      type="radio"
+                      value="other"
+                      checked={selectedCategory === "other"}
+                      name="category"
+                      onChange={() => setSelectedCategory("other")}
+                    />
+                    <span>
+                      Khác{" "}
+                    </span>
+                  </label>
                 </div>
               </div>
-
               <div className="filter-section">
                 <h3>Hãng xe</h3>
                 <div className="filter-options">
                   <label className="filter-option">
-                    <input type="radio" name="brand" value="all" checked={selectedBrand === 'all'} onChange={(e) => setSelectedBrand('all')} />
+                    <input
+                      type="radio"
+                      value="all"
+                      checked={selectedBrand === "all"}
+                      name="brand"
+                      onChange={() => setSelectedBrand("all")}
+                    />
                     <span>Tất cả</span>
                   </label>
+
                   {brands.map((b) => (
-                    <label key={`brand-${b.id}`} className="filter-option">
+                    <label key={b.brandId} className="filter-option">
                       <input
                         type="radio"
+                        value={b.brandId}
+                        checked={String(selectedBrand) === String(b.brandId)}
                         name="brand"
-                        value={String(b.id)}
-                        checked={String(selectedBrand) === String(b.id)}
-                        onChange={(e) => setSelectedBrand(e.target.value)}
+                        onChange={() => setSelectedBrand(b.brandId)}
                       />
-                      <span>{b.name}</span>
+                      <span>
+                        {b.brandName}{" "}
+                        <span style={{ color: "#999", fontSize: "12px" }}>
+                          ({b.count})
+                        </span>
+                      </span>
                     </label>
                   ))}
+
+                  {/* ô "Khác" cho brand */}
+                  <label className="filter-option">
+                    <input
+                      type="radio"
+                      value="other"
+                      checked={selectedBrand === "other"}
+                      name="brand"
+                      onChange={() => setSelectedBrand("other")}
+                    />
+                    <span>
+                      Khác{" "}
+                    </span>
+                  </label>
                 </div>
               </div>
-
               <div className="filter-section">
                 <h3>Khoảng giá</h3>
                 <div className="price-range-display">
-                  <span className="price-label">Từ: {formatPriceShort(priceRange[0])}</span>
-                  <span className="price-label">Đến: {formatPriceShort(priceRange[1])}</span>
+                  <span className="price-label">
+                    Từ: {formatPriceShort(priceRange[0])}
+                  </span>
+                  <span className="price-label">
+                    Đến: {formatPriceShort(priceRange[1])}
+                  </span>
                 </div>
                 <div className="price-slider-container">
-                  <input type="range" min="5000000" max="2000000000" step="5000000" value={priceRange[0]} onChange={(e) => { const v = Number(e.target.value); if (v < priceRange[1]) setPriceRange([v, priceRange[1]]); }} />
-                  <input type="range" min="5000000" max="2000000000" step="5000000" value={priceRange[1]} onChange={(e) => { const v = Number(e.target.value); if (v > priceRange[0]) setPriceRange([priceRange[0], v]); }} />
+                  <input
+                    min="5000000"
+                    max="20000000000"
+                    step="5000000"
+                    type="range"
+                    value={priceRange[0]}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (v < priceRange[1]) setPriceRange([v, priceRange[1]]);
+                    }}
+                  />
+                  <input
+                    min="5000000"
+                    max="20000000000"
+                    step="5000000"
+                    type="range"
+                    value={priceRange[1]}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (v > priceRange[0]) setPriceRange([priceRange[0], v]);
+                    }}
+                  />
                 </div>
               </div>
-
-              <button className="reset-filter-btn" onClick={() => { setSelectedCategory('all'); setSelectedBrand('all'); setPriceRange([5000000, 2000000000]); }}>Xóa bộ lọc</button>
+              <button
+                className="reset-filter-btn"
+                onClick={() => {
+                  setSelectedCategory("all");
+                  setSelectedBrand("all");
+                  setPriceRange([5000000, 2000000000]);
+                }}
+              >
+                Xóa bộ lọc
+              </button>
             </aside>
-
+            {/* Danh sách sản phẩm */}
             <main className="products-section">
               <div className="products-header">
-                <h2>Sản phẩm ({listings.length})</h2>
-                <div className="sort-options">
-                  <select 
-                    className="sort-select"
-                    value={sortOption}
-                    onChange={(e) => setSortOption(e.target.value)}
-                  >
-                    <option value="newest">Mới nhất</option>
-                    <option value="price-asc">Giá tăng dần</option>
-                    <option value="price-desc">Giá giảm dần</option>
-                  </select>
-                </div>
+                <h2>Sản phẩm ({total})</h2>
               </div>
-
-              {isLoading && <div className="loading-state">Đang tải sản phẩm...</div>}
+              {loading && (
+                <div className="loading-state">Đang tải sản phẩm...</div>
+              )}
               {error && <div className="error-state">{error}</div>}
-
-              {!isLoading && !error && (
-                <>
-                  <div className="products-grid">
-                    {getSortedListings(listings).map((p, idx) => (
-                      <div key={`product-${p.id ?? idx}`} className="product-card" onClick={() => navigate(`/product/${p.id}`)}>
+              {!loading && !error && (
+                <div className="products-grid">
+                  {listings.length > 0 ? (
+                    listings.map((item) => (
+                      <div
+                        key={item.id}
+                        className="product-card"
+                        onClick={() => navigate(`/product/${item.id}`)}
+                      >
                         <div className="product-image">
-                          <img src={p.displayImage || defaultImage} alt={p.title || p.name || 'product'} />
-                          <span className="product-badge">{p.categoryName}</span>
+                          <img
+                            src={
+                              item.primaryImageUrl ||
+                              (item.images &&
+                                item.images.find((im) => im.isPrimary)?.url) ||
+                              (item.images && item.images[0]?.url) ||
+                              "/no-image.png" // dùng ảnh mặc định local
+                            }
+                            alt={item.title}
+                            onError={(e) => {
+                              // Chỉ đổi src sang ảnh local, không dùng link placeholder ngoài
+                              e.target.onerror = null;
+                              e.target.src = "/no-image.png";
+                            }}
+                          />
+                          <span className="product-badge">
+                            {item.categoryName}
+                          </span>
                         </div>
                         <div className="product-info">
-                          <h3 className="product-name">{p.title || p.name}</h3>
-                          <p className="product-price">{formatPrice(p.price ?? 0)}</p>
+                          <h3 className="product-name">{item.title}</h3>
+                          <p className="product-price">
+                            {formatPrice(item.price)}
+                          </p>
                           <div className="product-details">
-                            {p.categoryName === 'Xe điện' ? (
-                              <>
-                                <span>🚗 {p.product?.year}</span>
-                                <span>📏 {p.product?.odometer} km</span>
-                              </>
-                            ) : (
-                              <span>🔋 {p.product?.condition}</span>
+                            {item.product?.model && (
+                              <span>🚗 {item.product.model}</span>
+                            )}
+                            {item.product?.year && (
+                              <span>📅 {item.product.year}</span>
+                            )}
+                            {item.product?.condition && (
+                              <span>🔋 {item.product.condition}</span>
                             )}
                           </div>
-                          <p className="product-location">📍 {p.seller?.address || 'N/A'}</p>
-                          <p className="product-description">{p.description}</p>
+                          <p className="product-description">
+                            {item.description}
+                          </p>
                           <div className="product-footer">
-                            <button className="contact-btn" onClick={(e) => { e.stopPropagation(); }}>Liên hệ</button>
+                            <button
+                              className="contact-btn"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Đặt mua
+                            </button>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  {listings.length === 0 && <div className="no-products"><p>Không tìm thấy sản phẩm phù hợp</p></div>}
-                </>
+                    ))
+                  ) : (
+                    <div className="no-products">
+                      <p>Không tìm thấy sản phẩm phù hợp</p>
+                    </div>
+                  )}
+                </div>
               )}
             </main>
           </div>

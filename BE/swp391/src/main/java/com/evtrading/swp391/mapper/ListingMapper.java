@@ -30,6 +30,8 @@ public class ListingMapper {
         dto.setCreatedAt(listing.getCreatedAt());
         dto.setStartDate(listing.getStartDate());
         dto.setExpiryDate(listing.getExpiryDate());
+        dto.setAverageRating(listing.getAverageRating());
+        dto.setRejectionReason(listing.getRejectionReason()); // Thêm lý do từ chối
         
         // Thông tin brand - SET STRING thay vì object
         if (listing.getBrand() != null) {

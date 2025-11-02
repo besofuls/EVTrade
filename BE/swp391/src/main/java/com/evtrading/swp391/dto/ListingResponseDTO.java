@@ -15,6 +15,8 @@ public class ListingResponseDTO {
     private Date createdAt;
     private Date startDate;
     private Date expiryDate;
+    private Double averageRating;
+    private String rejectionReason;
     
     // Thông tin người bán
     private UserDTO seller;

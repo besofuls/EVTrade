@@ -12,6 +12,7 @@ public class PaymentResponseDTO {
     private String provider;
     private String status;
     private Date paidAt;
+    private String paymentUrl; // Thêm trường này
 
     // Getters and Setters
     public Integer getPaymentId() { return paymentId; }
@@ -30,4 +31,6 @@ public class PaymentResponseDTO {
     public void setStatus(String status) { this.status = status; }
     public Date getPaidAt() { return paidAt; }
     public void setPaidAt(Date paidAt) { this.paidAt = paidAt; }
+    public String getPaymentUrl() { return paymentUrl; }
+    public void setPaymentUrl(String paymentUrl) { this.paymentUrl = paymentUrl; }
 }

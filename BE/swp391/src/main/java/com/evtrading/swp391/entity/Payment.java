@@ -15,9 +15,9 @@ public class Payment {
     private Transaction transaction;
 
     private BigDecimal amount;
-    private String method;
-    private String provider;
-    private String status;
+    private String method;        // Ví dụ: CARD, WALLET, BANK_TRANSFER
+    private String provider;      // Ví dụ: VNPay, MoMo, ZaloPay, Stripe
+    private String status;        // PENDING, SUCCESS, FAILED, REFUNDED
     private Date paidAt;
 
     // Getters and Setters

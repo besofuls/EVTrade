@@ -24,6 +24,7 @@ public class Battery {
     private BigDecimal voltage;
     private Integer cycleCount;
     private BigDecimal price;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String condition;
 
     // Getters and Setters

@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,7 +33,7 @@ import java.math.BigDecimal;
 @RequestMapping("/api/listings")
 @Tag(name = "Listings", description = "API để quản lý bài đăng sản phẩm")
 public class ListingController {
-    
+
     @Autowired
     private ListingService listingService;
 
@@ -50,8 +53,41 @@ public class ListingController {
         ListingRequestDTO listingRequest = mapper.readValue(listingJson, ListingRequestDTO.class);
 
         // Tiếp tục xử lý như bình thường
-        ListingResponseDTO createdListing = listingService.createListing(listingRequest, images, authentication.getName());
+        ListingResponseDTO createdListing = listingService.createListing(listingRequest, images,
+                authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(createdListing);
+    }
+
+    @Operation(summary = "Cập nhật bài đăng kèm ảnh", description = "Chỉ bài đăng bị flagged hoặc bị từ chối mới được cập nhật")
+    @SecurityRequirement(name = "bearerAuth")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ListingResponseDTO> updateListing(
+            @PathVariable Integer id,
+            @RequestPart(value = "listing", required = true) String listingJson,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            Authentication authentication) throws IOException {
+
+        System.out.println(">>> [updateListing] Authenticated user: " + (authentication != null ? authentication.getName() : "null"));
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        ListingRequestDTO listingRequest = mapper.readValue(listingJson, ListingRequestDTO.class);
+
+        try {
+            ListingResponseDTO updatedListing = listingService.updateListing(id, listingRequest, images, authentication.getName());
+            return ResponseEntity.ok(updatedListing);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("permission")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            if (e.getMessage().contains("flagged") || e.getMessage().contains("rejected")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
     }
 
     // Sửa phương thức getListings để rõ ràng hơn trong việc lọc bài đăng
@@ -67,22 +103,24 @@ public class ListingController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir,
             Authentication authentication) {
-        
+
         Sort.Direction direction = sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
-        
+
         boolean isModerator = false;
-        
+
         // Kiểm tra role của người dùng
         if (authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_MODERATOR") || a.getAuthority().equals("ROLE_ADMIN"))) {
             isModerator = true;
         }
-        
-        Page<ListingResponseDTO> listings = listingService.getListings(status, userId, categoryId, brandId, pageable, isModerator);
+
+        Page<ListingResponseDTO> listings = listingService.getListings(status, userId, categoryId, brandId, pageable,
+                isModerator);
         return ResponseEntity.ok(listings);
     }
 
+    @SecurityRequirements
     @Operation(summary = "Lấy chi tiết bài đăng", description = "Lấy thông tin chi tiết của một bài đăng")
     @GetMapping("/{id}")
     public ResponseEntity<ListingResponseDTO> getListingById(@PathVariable Integer id) {
@@ -91,51 +129,6 @@ public class ListingController {
             return ResponseEntity.ok(listing);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
-        }
-    }
-
-    @Operation(summary = "Cập nhật bài đăng", description = "Cập nhật thông tin của một bài đăng")
-    @PutMapping("/{id}")
-    public ResponseEntity<ListingResponseDTO> updateListing(
-            @PathVariable Integer id,
-            @RequestBody ListingRequestDTO listingRequest,
-            Authentication authentication) {
-        
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        try {
-            String username = authentication.getName();
-            ListingResponseDTO updatedListing = listingService.updateListing(id, listingRequest, username);
-            return ResponseEntity.ok(updatedListing);
-        } catch (Exception e) {
-            if (e.getMessage().contains("permission")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
-    }
-
-    @Operation(summary = "Xóa bài đăng", description = "Xóa một bài đăng theo ID")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteListing(
-            @PathVariable Integer id,
-            Authentication authentication) {
-        
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        try {
-            String username = authentication.getName();
-            listingService.deleteListing(id, username);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            if (e.getMessage().contains("permission")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
@@ -170,23 +163,7 @@ public class ListingController {
         }
     }
 
-    @Operation(summary = "Lấy danh sách bài đăng chờ phê duyệt", description = "Dành cho moderator để xem các bài đăng đang chờ phê duyệt")
-    @SecurityRequirement(name = "bearerAuth")
-    @GetMapping("/pending")
-    @PreAuthorize("hasRole('MODERATOR') or hasRole('ADMIN')")
-    public ResponseEntity<Page<ListingResponseDTO>> getPendingListings(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
-        
-        Sort.Direction direction = sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
-        
-        Page<ListingResponseDTO> pendingListings = listingService.getPendingListings(pageable);
-        return ResponseEntity.ok(pendingListings);
-    }
-
+    @SecurityRequirements
     @Operation(summary = "Tìm kiếm bài đăng", description = "Tìm kiếm theo từ khóa, category, brand, khoảng giá, năm sản xuất...")
     @GetMapping("/search")
     public ResponseEntity<Page<ListingResponseDTO>> searchListings(
@@ -203,8 +180,7 @@ public class ListingController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Sort.Direction direction = sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 

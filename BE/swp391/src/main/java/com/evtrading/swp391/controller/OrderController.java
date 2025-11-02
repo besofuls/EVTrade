@@ -8,23 +8,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 import com.evtrading.swp391.dto.OrderRequestDTO;
 import com.evtrading.swp391.dto.OrderResponseDTO;
 import com.evtrading.swp391.dto.PaymentRequestDTO;
 import com.evtrading.swp391.dto.PaymentResponseDTO;
+import com.evtrading.swp391.dto.TransactionReportDTO;
+import com.evtrading.swp391.dto.TransactionDTO;
 import com.evtrading.swp391.service.OrderService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
 
 @RestController
 @RequestMapping("/api")
@@ -95,7 +96,7 @@ public class OrderController {
         }
     }
 
-    @Operation(summary = "Lấy chi tiết đơn hàng", description = "Xem thông tin chi tiết của một đơn hàng")
+    @Operation(summary = "Lấy chi tiết đơn hàng của người dùng hiện tại", description = "Xem thông tin chi tiết của một đơn hàng")
     @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/orders/{id}")
     public ResponseEntity<OrderResponseDTO> getOrderById(
@@ -134,4 +135,103 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
+
+    /**
+     * /**
+     * Admin xem transaction report của BẤT KỲ user nào
+     * 
+     * @param userId   ID của user cần xem report (bắt buộc)
+     * @param fromDate Ngày bắt đầu (optional)
+     * @param toDate   Ngày kết thúc (optional)
+     */
+    @Operation(summary = "Admin: Tạo báo cáo giao dịch cho bất kỳ user nào", description = "Admin có thể xem report giao dịch của mọi user trong hệ thống bằng cách truyền userId")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')") // Chỉ ADMIN
+    @GetMapping("/admin/transactions/report")
+    public ResponseEntity<TransactionReportDTO> generateReportForAnyUser(
+            @RequestParam Integer userId, // Bắt buộc phải có userId
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date fromDate,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date toDate,
+            Authentication authentication) {
+
+        try {
+            // Gọi service với userId được chỉ định
+            TransactionReportDTO report = orderService.generateTransactionReportByUserId(
+                    userId,
+                    fromDate,
+                    toDate);
+
+            logger.info("Admin {} generated report for user ID: {}",
+                    authentication.getName(), userId);
+
+            return ResponseEntity.ok(report);
+
+        } catch (RuntimeException e) {
+            logger.error("Error generating report for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @Operation(summary = "Lấy tất cả transaction của user hiện tại")
+    @SecurityRequirement(name = "bearerAuth")
+    @GetMapping("/transactions")
+    public ResponseEntity<List<TransactionDTO>> getCurrentUserTransactions(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            String username = authentication.getName();
+            List<TransactionDTO> transactions = orderService.getCurrentUserTransactions(username);
+            return ResponseEntity.ok(transactions);
+        } catch (Exception e) {
+            logger.error("Error getting transactions: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+    }
+
+    @Operation(summary = "Lấy tất cả transaction đã thanh toán đủ của user hiện tại")
+    @SecurityRequirement(name = "bearerAuth")
+    @GetMapping("/transactions/fully-paid")
+    public ResponseEntity<List<TransactionDTO>> getCurrentUserFullyPaidTransactions(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            String username = authentication.getName();
+            List<TransactionDTO> transactions = orderService.getCurrentUserFullyPaidTransactions(username);
+            return ResponseEntity.ok(transactions);
+        } catch (Exception e) {
+            logger.error("Error getting fully paid transactions: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+    }
+
+    @Operation(summary = "Admin: Lấy toàn bộ transaction trong hệ thống", description = "Chỉ ADMIN được phép xem tất cả transaction")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/transactions")
+    public ResponseEntity<List<TransactionDTO>> getAllTransactionsForAdmin(Authentication authentication) {
+        try {
+            List<TransactionDTO> transactions = orderService.getAllTransactionsForAdmin();
+            return ResponseEntity.ok(transactions);
+        } catch (Exception e) {
+            logger.error("Error getting all transactions for admin: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+    }
+
+    @Operation(summary = "Admin: Xem lịch sử thanh toán của bất kỳ transaction", description = "Chỉ ADMIN được phép xem lịch sử thanh toán của mọi transaction")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/transactions/{id}/payments")
+    public ResponseEntity<List<PaymentResponseDTO>> getPaymentHistoryForAdmin(@PathVariable Integer id) {
+        try {
+            List<PaymentResponseDTO> payments = orderService.getPaymentHistoryForAdmin(id);
+            return ResponseEntity.ok(payments);
+        } catch (Exception e) {
+            logger.error("Error getting payment history for admin: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+    }
+
 }
