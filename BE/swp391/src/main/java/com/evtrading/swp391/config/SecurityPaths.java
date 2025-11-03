@@ -23,7 +23,9 @@ public final class SecurityPaths {
         "/api/brands",
         "/api/categories",
         // DocuSeal webhook callback (no auth; verified by header secret)
-        "/api/contracts/webhook"
+        "/api/contracts/webhook",
+        "/api/system-config/public/**", // Thêm dòng này
+
     };
 
     private static final String[] MEMBER_ENDPOINTS = new String[] {

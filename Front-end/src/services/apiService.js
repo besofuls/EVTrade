@@ -343,6 +343,62 @@ const apiService = {
     return await res.json();
   },
 
+  // Cập nhật bài đăng
+  updateProductPost: async function (listingId, listingObj, images) {
+    const token = this.getAuthToken();
+    const form = new FormData();
+    form.append("listing", JSON.stringify(listingObj));
+    if (images && Array.isArray(images)) {
+      images.forEach((file) => {
+        form.append("images", file);
+      });
+    }
+    const res = await fetch(`${API_BASE_URL}/listings/${listingId}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: form,
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || "Cập nhật bài đăng thất bại");
+    }
+    return await res.json();
+  },
+
+  // Lấy cấu hình hệ thống public (ví dụ: giá gia hạn)
+  getExtendConfig: async function () {
+    // Giả sử backend có endpoint này để trả về các config public
+    // GET /api/system-config/public?keys=EXTEND_PRICE_PER_DAY
+    const res = await fetch(`${API_BASE_URL}/system-config/public?keys=EXTEND_PRICE_PER_DAY`);
+    if (!res.ok) return { EXTEND_PRICE_PER_DAY: 5000 }; // Giá trị mặc định
+    const configs = await res.json();
+    return configs;
+  },
+
+  // Tạo thanh toán để gia hạn bài đăng
+  createExtendPayment: async function (listingId, days) {
+    const token = this.getAuthToken();
+    const url = new URL(`${API_BASE_URL}/listings/${listingId}/extend-payment`);
+    url.searchParams.append("days", days);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || "Không thể tạo yêu cầu gia hạn");
+    }
+    return await res.json();
+  },
+
   ///////////////////////////////////////////////////////////////////////////////
 
   // API ĐẶT ĐƠN HÀNG

@@ -4,19 +4,22 @@ import com.evtrading.swp391.dto.*;
 import com.evtrading.swp391.entity.*;
 import com.evtrading.swp391.mapper.ListingMapper;
 import com.evtrading.swp391.repository.*;
+import com.evtrading.swp391.util.VnpayUtil;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.Calendar;
 
 @Service
 public class ListingService {
@@ -53,6 +56,25 @@ public class ListingService {
 
     @Autowired
     private ComplaintRepository complaintRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private SystemConfigRepository systemConfigRepository; // Giả sử bạn có repo này
+
+    // Thêm các giá trị từ application.properties
+    @Value("${vnpay.tmnCode}")
+    private String vnpTmnCode;
+    @Value("${vnpay.hashSecret}")
+    private String vnpHashSecret;
+    @Value("${vnpay.payUrl}")
+    private String vnpPayUrl;
+    @Value("${vnpay.returnUrl}")
+    private String vnpReturnUrl;
 
     /**
      * Tạo một bài đăng mới
@@ -92,8 +114,8 @@ public class ListingService {
         listing.setPrice(dto.getPrice());
         listing.setStatus("PENDING"); // Trạng thái mặc định khi tạo mới
         listing.setCreatedAt(new Date());
-        // ngày hết hạn để theo config của hệ thống (hiện tại tạm đặt là 14 ngày)
-        listing.setExpiryDate(new Date(System.currentTimeMillis() + 14L * 24 * 60 * 60 * 1000)); // 14 ngày từ ngày tạo
+
+        
 
         // Nếu là xe
         if (vehicle != null) {
@@ -303,7 +325,7 @@ public class ListingService {
     }
 
     /**
-     * Phê duyệt bài đăng (chỉ Moderator)
+     * Phê duyệt bài đăng (chỉ Moderator hoặc Admin)
      */
     @Transactional
     public ListingResponseDTO approveListing(Integer id) {
@@ -319,10 +341,14 @@ public class ListingService {
         listing.setStatus("ACTIVE");
         listing.setStartDate(new Date());
 
-        // Thiết lập ngày hết hạn (ví dụ 30 ngày sau)
+        // Lấy số ngày đăng bài miễn phí từ cấu hình hệ thống
+        int freeDays = systemConfigRepository.findByConfigKey("FREE_LISTING_DAYS")
+                .map(config -> Integer.parseInt(config.getConfigValue()))
+                .orElse(14); // Giá trị mặc định là 14 ngày nếu không có cấu hình
+
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date());
-        calendar.add(Calendar.DATE, 30);
+        calendar.add(Calendar.DATE, freeDays);
         listing.setExpiryDate(calendar.getTime());
 
         Listing savedListing = listingRepository.save(listing);
@@ -333,7 +359,7 @@ public class ListingService {
     }
 
     /**
-     * Từ chối bài đăng (chỉ Moderator)
+     * Từ chối bài đăng (chỉ Moderator hoặc Admin)
      */
     @Transactional
     public ListingResponseDTO rejectListing(Integer id, String reason) {
@@ -359,6 +385,90 @@ public class ListingService {
         List<ListingImage> images = listingImageRepository.findByListingListingID(id);
 
         return convertToListingResponseDTO(savedListing, images);
+    }
+
+    /**
+     * Tạo thanh toán để gia hạn bài đăng
+     */
+    @Transactional
+    public PaymentResponseDTO createExtendPayment(Integer listingId, int days, String username) {
+        // 1. Lấy thông tin bài đăng và xác thực quyền
+        Listing listing = listingRepository.findById(listingId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng."));
+        if (!listing.getUser().getUsername().equals(username)) {
+            throw new RuntimeException("Bạn không có quyền gia hạn bài đăng này.");
+        }
+
+        // 2. Lấy cấu hình giá từ DB
+        int pricePerDay = Integer.parseInt(systemConfigRepository.findByConfigKey("EXTEND_PRICE_PER_DAY")
+                .orElseThrow(() -> new RuntimeException("Chưa cấu hình giá gia hạn."))
+                .getConfigValue());
+
+        // Bỏ kiểm tra số ngày tối đa, chỉ cần đảm bảo số ngày là số dương
+        if (days <= 0) {
+            throw new RuntimeException("Số ngày gia hạn phải là một số dương.");
+        }
+
+        // 3. Tính tổng tiền
+        BigDecimal totalAmount = new BigDecimal(pricePerDay * days);
+
+        // 4. Tạo Transaction loại SERVICE
+        Transaction transaction = new Transaction();
+        transaction.setType("SERVICE");
+        transaction.setReferenceType("LISTING_EXTEND");
+        transaction.setReferenceID(listingId); // ID của bài đăng cần gia hạn
+        transaction.setTotalAmount(totalAmount);
+        transaction.setStatus("PENDING");
+        transaction.setCreatedAt(new Date());
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        // 5. Tạo Payment
+        Payment payment = new Payment();
+        payment.setTransaction(savedTransaction);
+        payment.setAmount(totalAmount);
+        payment.setMethod("VNPAY");
+        payment.setProvider("VNPAY");
+        payment.setStatus("PENDING");
+        payment.setSellerId(listing.getUser().getUserID()); // Người hưởng lợi là chủ bài đăng
+        
+        // Tạo mã tham chiếu duy nhất cho VNPAY
+        String txnRef = "EXTEND_" + listingId + "_" + System.currentTimeMillis();
+        payment.setTxnRef(txnRef);
+        Payment savedPayment = paymentRepository.save(payment);
+
+        // 6. Tạo URL thanh toán VNPAY
+        String ipAddr = "127.0.0.1"; // Lấy IP thực tế từ request nếu cần
+        String paymentUrl = VnpayUtil.createPaymentUrl(
+                vnpTmnCode, vnpHashSecret, vnpPayUrl, vnpReturnUrl,
+                totalAmount, txnRef, ipAddr);
+
+        // 7. Trả về thông tin thanh toán cho frontend
+        PaymentResponseDTO response = new PaymentResponseDTO();
+        response.setPaymentId(savedPayment.getPaymentID());
+        response.setAmount(savedPayment.getAmount());
+        response.setPaymentUrl(paymentUrl);
+        response.setStatus(savedPayment.getStatus());
+        // ... set các trường khác nếu cần
+        
+        return response;
+    }
+
+    /**
+     * Gia hạn ngày hết hạn cho bài đăng (sẽ được gọi sau khi thanh toán thành công)
+     */
+    @Transactional
+    public void extendListingExpiry(Integer listingId, int days) {
+        Listing listing = listingRepository.findById(listingId)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng để gia hạn."));
+
+        Date currentExpiry = listing.getExpiryDate();
+        Calendar cal = Calendar.getInstance();
+        // Nếu đã hết hạn, gia hạn từ ngày hôm nay. Nếu chưa, gia hạn từ ngày hết hạn cũ.
+        cal.setTime(currentExpiry != null && currentExpiry.after(new Date()) ? currentExpiry : new Date());
+        cal.add(Calendar.DATE, days);
+        listing.setExpiryDate(cal.getTime());
+
+        listingRepository.save(listing);
     }
 
     // Các phương thức helper bên dưới

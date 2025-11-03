@@ -178,6 +178,14 @@ public class OrderService {
         payment.setProvider(dto.getPaymentProvider());
         payment.setStatus("PENDING");
         payment.setPaidAt(new Date());
+        
+        // *** THÊM DÒNG NÀY ĐỂ LƯU SELLER ID ***
+        payment.setSellerId(transaction.getOrder().getListing().getUser().getUserID());
+
+        // Thêm TxnRef vào payment
+        String txnRef = "ORDER_" + transaction.getOrder().getOrderID() + "_" + System.currentTimeMillis();
+        payment.setTxnRef(txnRef);
+
         Payment savedPayment = paymentRepository.save(payment);
 
         // Nếu chọn phương thức VNPAY thì sinh URL và trả về cho FE
@@ -185,7 +193,7 @@ public class OrderService {
             String ipAddr = "127.0.0.1"; // Lấy từ request thực tế nếu cần
             String paymentUrl = VnpayUtil.createPaymentUrl(
                     vnpTmnCode, vnpHashSecret, vnpPayUrl, vnpReturnUrl,
-                    dto.getAmount(), savedPayment.getPaymentID().toString(), ipAddr);
+                    dto.getAmount(), txnRef, ipAddr); // Sử dụng txnRef mới
 
             PaymentResponseDTO response = new PaymentResponseDTO();
             response.setPaymentId(savedPayment.getPaymentID());
@@ -314,54 +322,13 @@ public class OrderService {
         }).collect(Collectors.toList());
     }
 
-    public VnpayCallbackResultDTO handleVnpayCallback(Map<String, String> params) {
-        String vnpTxnRef = params.get("vnp_TxnRef");
-        String vnpTransactionNo = params.get("vnp_TransactionNo");
-        String vnpResponseCode = params.get("vnp_ResponseCode");
-        String vnpSecureHash = params.get("vnp_SecureHash");
-
-        Map<String, String> paramsForHash = new HashMap<>(params);
-        paramsForHash.remove("vnp_SecureHash");
-        String hashData = VnpayUtil.buildHashData(paramsForHash);
-        String myHash = VnpayUtil.hmacSHA512(vnpHashSecret, hashData);
-        if (!myHash.equalsIgnoreCase(vnpSecureHash)) {
-            logger.error("VNPAY callback: Invalid secure hash!");
-            return new VnpayCallbackResultDTO(false, "Chữ ký bảo mật không hợp lệ!");
-        }
-
-        Integer paymentId;
-        try {
-            paymentId = Integer.parseInt(vnpTxnRef);
-        } catch (Exception e) {
-            logger.error("VNPAY callback: Invalid paymentId {}", vnpTxnRef);
-            return new VnpayCallbackResultDTO(false, "Mã giao dịch không hợp lệ!");
-        }
-        Payment payment = paymentRepository.findById(paymentId).orElse(null);
-        if (payment == null) {
-            logger.error("VNPAY callback: Payment not found: {}", paymentId);
-            return new VnpayCallbackResultDTO(false, "Không tìm thấy giao dịch thanh toán!");
-        }
-
-        if (!"00".equals(vnpResponseCode)) {
-            logger.warn("VNPAY callback: Payment failed, response code: {}", vnpResponseCode);
-            if ("PENDING".equals(payment.getStatus())) {
-                payment.setStatus("FAILED");
-                paymentRepository.save(payment);
-            }
-            String reason = "Thanh toán thất bại. Mã lỗi: " + vnpResponseCode;
-            return new VnpayCallbackResultDTO(false, reason);
-        }
-
-        if (!"PENDING".equals(payment.getStatus())) {
-            logger.warn("VNPAY callback: Payment already processed: {}", paymentId);
-            return new VnpayCallbackResultDTO(false, "Giao dịch đã được xử lý trước đó.");
-        }
-
-        Transaction transaction = payment.getTransaction();
+    /**
+     * Xử lý logic sau khi một thanh toán cho đơn hàng thành công.
+     * Phương thức này được gọi bởi VnpayService.
+     */
+    @Transactional
+    public void processSuccessfulOrderPayment(Transaction transaction, Payment payment) {
         Order order = transaction.getOrder();
-
-        payment.setStatus("COMPLETED");
-        paymentRepository.save(payment);
 
         transaction.setPaidAmount(transaction.getPaidAmount().add(payment.getAmount()));
         if (transaction.getPaidAmount().compareTo(transaction.getTotalAmount()) >= 0) {
@@ -378,9 +345,6 @@ public class OrderService {
             transaction.setStatus("PARTIALLY_PAID");
         }
         transactionRepository.save(transaction);
-
-        logger.info("VNPAY callback: Payment completed for order {}", order.getOrderID());
-        return new VnpayCallbackResultDTO(true, "Thanh toán thành công!");
     }
 
     /**

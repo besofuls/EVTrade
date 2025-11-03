@@ -11,4 +11,6 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Integer> {
     List<Payment> findByTransactionOrderByPaidAtDesc(Transaction transaction);
     Optional<Payment> findFirstByTransactionAndStatus(Transaction transaction, String status);
+    Optional<Payment> findByTxnRef(String txnRef);
+    List<Payment> findAllByStatus(String status);
 }

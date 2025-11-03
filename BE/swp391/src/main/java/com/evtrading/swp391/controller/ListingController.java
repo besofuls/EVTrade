@@ -28,6 +28,7 @@ import org.springframework.http.MediaType;
 import java.io.IOException;
 import java.util.List;
 import java.math.BigDecimal;
+import com.evtrading.swp391.dto.PaymentResponseDTO; // Thêm import này
 
 @RestController
 @RequestMapping("/api/listings")
@@ -160,6 +161,23 @@ public class ListingController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(null);
+        }
+    }
+
+    @Operation(summary = "Tạo thanh toán để gia hạn bài đăng", description = "Tạo URL thanh toán VNPAY để gia hạn bài đăng thêm x ngày.")
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping("/{id}/extend-payment")
+    public ResponseEntity<PaymentResponseDTO> createExtendPayment(
+            @PathVariable Integer id,
+            @RequestParam int days,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            PaymentResponseDTO paymentResponse = listingService.createExtendPayment(id, days, username);
+            return ResponseEntity.ok(paymentResponse);
+        } catch (RuntimeException e) {
+            // Bạn có thể tùy chỉnh các mã lỗi khác nhau
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
 

@@ -65,9 +65,23 @@ function MyListings() {
   const [extendDays, setExtendDays] = useState(1);
   const [extendLoading, setExtendLoading] = useState(false);
   const [extendFeedback, setExtendFeedback] = useState("");
-  const [extendConfig, setExtendConfig] = useState({ pricePerDay: 0, maxDays: 30 });
+  const [extendConfig, setExtendConfig] = useState({ pricePerDay: 10000 });
 
   useEffect(() => {
+    // Hiển thị feedback sau khi redirect từ VNPAY
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get("payment_status");
+    const reason = params.get("reason");
+    if (paymentStatus === "success") {
+      alert("Thanh toán gia hạn thành công!");
+    } else if (paymentStatus === "fail") {
+      alert(`Thanh toán gia hạn thất bại: ${reason || 'Lỗi không xác định'}`);
+    }
+    // Xóa query params khỏi URL để không hiển thị lại thông báo khi refresh
+    if (paymentStatus) {
+      navigate("/my-listings", { replace: true });
+    }
+
     async function fetchListings() {
       try {
         const data = await apiService.getUserListings();
@@ -80,14 +94,14 @@ function MyListings() {
       try {
         setBrands(await apiService.getBrands());
         setCategories(await apiService.getCategories());
-        // Lấy config mở rộng từ BE (giả sử có API này)
-        const config = await apiService.getExtendConfig();
-        setExtendConfig(config || { pricePerDay: 10000, maxDays: 30 });
+        // Lấy config mở rộng từ BE
+        const configData = await apiService.getExtendConfig();
+        setExtendConfig({ pricePerDay: Number(configData.EXTEND_PRICE_PER_DAY) || 10000 });
       } catch {}
     }
     fetchListings();
     fetchMeta();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (!listingImages || listingImages.length === 0) {
@@ -368,20 +382,30 @@ function MyListings() {
   };
 
   const handleExtendListing = async () => {
+    if (!selectedListing || extendDays <= 0) {
+      setExtendFeedback("Vui lòng chọn số ngày hợp lệ.");
+      return;
+    }
     setExtendLoading(true);
     setExtendFeedback("");
     try {
-      await apiService.extendListing(selectedListing.listingID || selectedListing.id, extendDays);
-      setExtendFeedback("Mở rộng bài đăng thành công!");
-      setShowExtendModal(false);
-      // Reload listings
-      const data = await apiService.getUserListings();
-      setListings(Array.isArray(data) ? data : Array.isArray(data.content) ? data.content : []);
+      // Gọi API để lấy URL thanh toán VNPAY
+      const paymentResponse = await apiService.createExtendPayment(
+        selectedListing.listingID || selectedListing.id,
+        extendDays
+      );
+
+      // Chuyển hướng người dùng đến trang thanh toán của VNPAY
+      if (paymentResponse && paymentResponse.paymentUrl) {
+        window.location.href = paymentResponse.paymentUrl;
+      } else {
+        throw new Error("Không nhận được URL thanh toán.");
+      }
     } catch (err) {
-      setExtendFeedback(err.message || "Mở rộng bài đăng thất bại.");
-    } finally {
+      setExtendFeedback(err.message || "Tạo yêu cầu gia hạn thất bại.");
       setExtendLoading(false);
     }
+    // Không cần set loading false ở đây vì trang sẽ được chuyển hướng
   };
 
   // Xử lý zoom ảnh
@@ -447,7 +471,7 @@ function MyListings() {
                         </td>
                         <td>
                           {item.createdAt
-                            ? new Date(item.createdAt).toLocaleString("vi-VN")
+                            ? `${new Date(item.createdAt).toLocaleTimeString("vi-VN")} ${new Date(item.createdAt).toLocaleDateString("vi-VN")}`
                             : "—"}
                         </td>
                         <td>
@@ -462,7 +486,7 @@ function MyListings() {
                         </td>
                         <td>
                           {item.expiryDate
-                            ? new Date(item.expiryDate).toLocaleDateString("vi-VN")
+                            ? `${new Date(item.expiryDate).toLocaleTimeString("vi-VN")} ${new Date(item.expiryDate).toLocaleDateString("vi-VN")}`
                             : "—"}
                         </td>
                         <td>
@@ -850,11 +874,10 @@ function MyListings() {
         <div>
           <h2>Mở rộng bài đăng</h2>
           <div className="form-group">
-            <label>Chọn số ngày muốn mở rộng (tối đa {extendConfig.maxDays} ngày):</label>
+            <label>Chọn số ngày muốn mở rộng:</label>
             <input
               type="number"
               min={1}
-              max={extendConfig.maxDays}
               value={extendDays}
               onChange={(e) => setExtendDays(Number(e.target.value))}
             />
@@ -878,9 +901,9 @@ function MyListings() {
               type="button"
               className="btn-primary"
               onClick={handleExtendListing}
-              disabled={extendLoading}
+              disabled={extendLoading || extendDays <= 0}
             >
-              {extendLoading ? "Đang xử lý..." : "Xác nhận mở rộng"}
+              {extendLoading ? "Đang chuyển hướng..." : "Thanh toán để gia hạn"}
             </button>
           </div>
           {extendFeedback && (
