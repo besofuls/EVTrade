@@ -16,8 +16,10 @@ import com.evtrading.swp391.repository.OrderRepository;
 import com.evtrading.swp391.repository.TransactionRepository;
 import com.evtrading.swp391.repository.PaymentRepository;
 import com.evtrading.swp391.repository.UserRepository;
+import com.evtrading.swp391.repository.ContractRepository;
 import com.evtrading.swp391.util.VnpayUtil;
 import com.evtrading.swp391.dto.TransactionDTO;
+import com.evtrading.swp391.dto.AdminOrderContractDTO;
 
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
@@ -52,6 +54,9 @@ public class OrderService {
 
     @Autowired
     private PaymentRepository paymentRepository;
+
+    @Autowired
+    private ContractRepository contractRepository;
 
     @Value("${vnpay.tmnCode}")
     private String vnpTmnCode;
@@ -517,6 +522,47 @@ public class OrderService {
             }
             return dto;
         }).collect(Collectors.toList());
+    }
+
+    private AdminOrderContractDTO buildAdminOrderContractDto(Order order) {
+        AdminOrderContractDTO dto = new AdminOrderContractDTO();
+        dto.setOrderId(order.getOrderID());
+        dto.setStatus(order.getStatus());
+        dto.setCreatedAt(order.getCreatedAt());
+        dto.setTotalAmount(order.getTotalAmount());
+
+        User buyer = order.getBuyer();
+        if (buyer != null) {
+            dto.setBuyerId(buyer.getUserID());
+            dto.setBuyerUsername(buyer.getUsername());
+            dto.setBuyerEmail(buyer.getEmail());
+        }
+
+        Listing listing = order.getListing();
+        if (listing != null) {
+            dto.setListingId(listing.getListingID());
+            dto.setListingTitle(listing.getTitle());
+            User seller = listing.getUser();
+            if (seller != null) {
+                dto.setSellerId(seller.getUserID());
+                dto.setSellerUsername(seller.getUsername());
+                dto.setSellerEmail(seller.getEmail());
+            }
+        }
+
+        contractRepository.findByOrder(order).ifPresent(contract -> {
+            dto.setContractId(contract.getContractID());
+            dto.setContractStatus(contract.getStatus());
+        });
+
+        return dto;
+    }
+
+    public List<AdminOrderContractDTO> getAllOrdersForAdmin() {
+        return orderRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::buildAdminOrderContractDto)
+                .collect(Collectors.toList());
     }
 
     public List<PaymentResponseDTO> getPaymentHistoryForAdmin(Integer transactionId) {

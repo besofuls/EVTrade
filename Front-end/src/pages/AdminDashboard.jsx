@@ -3,6 +3,7 @@ import AdminSidebar from "../components/AdminSidebar";
 import UserManagement from "./UserManagement";
 import ProductManagement from "./ProductManagement";
 import TransactionManagement from "./TransactionManagement";
+import ContractManagement from "./ContractManagement";
 import "./AdminDashboard.css";
 
 function AdminDashboard() {
@@ -16,6 +17,7 @@ function AdminDashboard() {
         {activeTab === "users" && <UserManagement />}
         {activeTab === "posts" && <ProductManagement />}
         {activeTab === "orders" && <TransactionManagement />}
+  {activeTab === "contracts" && <ContractManagement />}
         {/* Nếu muốn giữ trang tổng quan */}
         {activeTab === "overview" && (
           <>

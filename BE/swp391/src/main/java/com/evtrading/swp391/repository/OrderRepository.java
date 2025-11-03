@@ -14,4 +14,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     
     // Find orders for a given buyer and listing with exact status
     List<Order> findByBuyerAndListingAndStatus(User buyer, Listing listing, String status);
+
+    List<Order> findAllByOrderByCreatedAtDesc();
 }

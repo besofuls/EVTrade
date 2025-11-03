@@ -586,6 +586,95 @@ const apiService = {
     return await res.json();
   },
 
+  getOrdersForAdmin: async function () {
+    const token = this.getAuthToken();
+    const res = await fetch(`${API_BASE_URL}/admin/orders`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
+    if (res.status === 204) {
+      return [];
+    }
+    if (!res.ok) {
+      const message = res.status === 401
+        ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        : "Không thể tải danh sách đơn hàng";
+      const error = new Error(message);
+      error.status = res.status;
+      throw error;
+    }
+    return await res.json();
+  },
+
+  createContract: async function (contractData) {
+    const token = this.getAuthToken();
+    const res = await fetch(`${API_BASE_URL}/contracts/send`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+      body: JSON.stringify(contractData),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      const error = new Error(text || "Không thể tạo hợp đồng");
+      error.status = res.status;
+      throw error;
+    }
+    return await res.json();
+  },
+
+  getContractsForAdmin: async function () {
+    const token = this.getAuthToken();
+    const res = await fetch(`${API_BASE_URL}/contracts/admin`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
+    if (res.status === 204) {
+      return [];
+    }
+    if (!res.ok) {
+      const message = res.status === 401
+        ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        : "Không thể tải danh sách hợp đồng";
+      const error = new Error(message);
+      error.status = res.status;
+      throw error;
+    }
+    return await res.json();
+  },
+
+  getContractByOrder: async function (orderId) {
+    const token = this.getAuthToken();
+    const res = await fetch(`${API_BASE_URL}/contracts/order/${orderId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
+    if (res.status === 404) {
+      const error = new Error("Không tìm thấy hợp đồng");
+      error.status = 404;
+      throw error;
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      const error = new Error(text || "Không thể tải thông tin hợp đồng");
+      error.status = res.status;
+      throw error;
+    }
+    if (res.status === 204) {
+      return null;
+    }
+    return await res.json();
+  },
+
   // Lấy lịch sử thanh toán của giao dịch (chỉ dành cho Admin)
   getTransactionPayments: async function (transactionId) {
     const token = this.getAuthToken();
