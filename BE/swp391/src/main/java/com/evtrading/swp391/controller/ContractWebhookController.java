@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -201,17 +202,38 @@ public class ContractWebhookController {
         return s == null ? null : String.valueOf(s);
     }
 
-    @SuppressWarnings("unchecked")
     private static String extractCombinedUrl(Map<String, Object> json) {
-        Object data = json.get("data");
-        if (data instanceof Map<?,?> m) {
-            Object url = ((Map<String, Object>) m).get("combined_document_url");
-            if (url instanceof String s && !s.isBlank()) return s;
-            url = ((Map<String, Object>) m).get("signed_file_url");
-            if (url instanceof String s2 && !s2.isBlank()) return s2;
+        String fromData = extractCombinedUrlFromObject(json.get("data"));
+        if (fromData != null && !fromData.isBlank()) {
+            return fromData;
         }
-        Object url = json.get("combined_document_url");
-        return url instanceof String s ? s : null;
+        String fromRoot = extractCombinedUrlFromObject(json);
+        return fromRoot != null && !fromRoot.isBlank() ? fromRoot : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String extractCombinedUrlFromObject(Object source) {
+        if (!(source instanceof Map<?,?> map)) {
+            return null;
+        }
+        Object url = ((Map<String, Object>) map).get("combined_document_url");
+        if (url instanceof String s && !s.isBlank()) return s;
+
+        url = ((Map<String, Object>) map).get("signed_file_url");
+        if (url instanceof String s2 && !s2.isBlank()) return s2;
+
+        Object documents = ((Map<String, Object>) map).get("documents");
+        if (documents instanceof List<?> list) {
+            for (Object item : list) {
+                if (item instanceof Map<?,?> docMap) {
+                    Object docUrl = ((Map<String, Object>) docMap).get("url");
+                    if (docUrl instanceof String docStr && !docStr.isBlank()) {
+                        return docStr;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static Date extractCompletedAt(Map<String, Object> json) {

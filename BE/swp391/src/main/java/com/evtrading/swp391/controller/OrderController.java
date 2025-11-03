@@ -15,6 +15,7 @@ import com.evtrading.swp391.dto.PaymentRequestDTO;
 import com.evtrading.swp391.dto.PaymentResponseDTO;
 import com.evtrading.swp391.dto.TransactionReportDTO;
 import com.evtrading.swp391.dto.TransactionDTO;
+import com.evtrading.swp391.dto.AdminOrderContractDTO;
 import com.evtrading.swp391.service.OrderService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -216,6 +217,19 @@ public class OrderController {
             return ResponseEntity.ok(transactions);
         } catch (Exception e) {
             logger.error("Error getting all transactions for admin: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+    }
+
+    @Operation(summary = "Admin: Xem danh sách tất cả đơn hàng", description = "ADMIN hoặc MODERATOR xem mọi đơn hàng với trạng thái hiện tại")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
+    @GetMapping("/admin/orders")
+    public ResponseEntity<List<AdminOrderContractDTO>> getAllOrdersForAdmin() {
+        try {
+            return ResponseEntity.ok(orderService.getAllOrdersForAdmin());
+        } catch (Exception e) {
+            logger.error("Error getting orders for admin: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }

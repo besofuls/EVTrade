@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ContractService {
@@ -361,6 +362,14 @@ public class ContractService {
         return contractRepository.findByOrder_OrderID(orderId)
                 .map(this::toDTO)
                 .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContractDTO> getAllContractsForAdmin() {
+        return contractRepository.findAllByOrderByUpdateAtDesc()
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     @Transactional
