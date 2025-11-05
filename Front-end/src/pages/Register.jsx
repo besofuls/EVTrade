@@ -62,12 +62,42 @@ function Register() {
         password: formData.password
       }
 
-      const response = await apiService.register(registerData)
+      // Bước 1: Đăng ký
+      const registerResponse = await apiService.register(registerData)
       
-      // Chỉ chuyển trang khi có response thành công
-      if (response) {
-        alert('Đăng ký thành công!')
-        navigate('/')
+      if (registerResponse) {
+        console.log('Registration successful:', registerResponse)
+        
+        // Bước 2: Tự động đăng nhập sau khi đăng ký thành công
+        try {
+          const loginResponse = await apiService.login({
+            username: formData.username,
+            password: formData.password
+          })
+          
+          if (loginResponse && loginResponse.token) {
+            console.log('Auto-login successful')
+            
+            // Trigger storage event để Header cập nhật
+            window.dispatchEvent(new Event('storage'))
+            
+            alert('Đăng ký thành công! Chào mừng bạn đến với EVMARKETPLAY.VN!')
+            
+            // Chuyển về trang chủ với trạng thái đã đăng nhập
+            setTimeout(() => {
+              navigate('/')
+            }, 100)
+          } else {
+            // Nếu auto-login fail, chuyển đến trang login
+            alert('Đăng ký thành công! Vui lòng đăng nhập.')
+            navigate('/login')
+          }
+        } catch (loginErr) {
+          console.error('Auto-login error:', loginErr)
+          // Nếu auto-login fail, vẫn cho user đăng nhập thủ công
+          alert('Đăng ký thành công! Vui lòng đăng nhập.')
+          navigate('/login')
+        }
       } else {
         setError('Đăng ký thất bại. Vui lòng thử lại.')
       }

@@ -15,7 +15,7 @@ public class Battery {
     private Category category;
 
 
-    // Many batteries sdsscan belong to one brand (e.g., Panasonic, LG, etc.)
+    // Many batteries can belong to one brand (e.g., Panasonic, LG, etc.)
     @ManyToOne
     @JoinColumn(name = "brandID", nullable = false)
     private Brand brand;
@@ -24,6 +24,7 @@ public class Battery {
     private BigDecimal voltage;
     private Integer cycleCount;
     private BigDecimal price;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String condition;
 
     // Getters and Setters

@@ -1,44 +1,112 @@
-import 'bootstrap/dist/css/bootstrap.min.css'
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import backgroundVideo from '../assets/33vfxVliVS7mnZQ8o2LDBHzOqvL.mp4'
-import api from '../services/api'
-import './Login.css'
+import "bootstrap/dist/css/bootstrap.min.css";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+import backgroundVideo from "../assets/33vfxVliVS7mnZQ8o2LDBHzOqvL.mp4";
+import apiService from "../services/apiService";
+import { useToast } from "../contexts/ToastContext"; // Thêm import
+import "./Login.css";
 
 function Login() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const navigate = useNavigate()
+  const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { showToast } = useToast(); // Khởi tạo hook
+
+  useEffect(() => {
+    // Load Facebook SDK
+    window.fbAsyncInit = function () {
+      window.FB.init({
+        appId: "785985914430887", // <-- Thay bằng appId của bạn
+        cookie: true,
+        xfbml: true,
+        version: "v19.0",
+      });
+    };
+    (function (d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) {
+        return;
+      }
+      js = d.createElement(s);
+      js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    })(document, "script", "facebook-jssdk");
+  }, []);
+
+  const processAuthSuccess = (response) => {
+    if (response && response.token) {
+      window.dispatchEvent(new Event("storage"));
+      setTimeout(() => {
+        const role =
+          response.role?.toUpperCase?.() ||
+          response.roleName?.toUpperCase?.() ||
+          (response.user && Array.isArray(response.user.roles)
+            ? response.user.roles[0]
+            : "");
+
+        if (role === "ADMIN" || role === "MODERATOR") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+      }, 100);
+    } else {
+      showToast("Đăng nhập thất bại, không nhận được token.", "error");
+    }
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+
+    // Validation
+    if (!username || !password) {
+      showToast("Vui lòng điền đầy đủ thông tin", "warning");
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      const response = await api.post('/users/login', {
+      // Call API login - apiService sẽ tự động lưu token và user data
+      const response = await apiService.login({
         username,
-        password
-      })
-
-      // Lưu thông tin user vào localStorage
-      if (response.data) {
-        localStorage.setItem('user', JSON.stringify(response.data))
-        localStorage.setItem('isLoggedIn', 'true')
-        
-        // Chuyển về trang chủ
-        navigate('/')
-      }
+        password,
+      });
+      showToast("Đăng nhập thành công!", "success");
+      processAuthSuccess(response);
     } catch (err) {
-      console.error('Login error:', err)
-      setError(err.response?.data?.message || 'Tên đăng nhập hoặc mật khẩu không đúng')
+      console.error("Login error:", err);
+      showToast("Tên đăng nhập hoặc mật khẩu không đúng", "error");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const handleFacebookLogin = () => {
+    window.FB.login(
+      function (response) {
+        if (response.authResponse) {
+          const accessToken = response.authResponse.accessToken;
+          apiService
+            .socialLogin({
+              provider: "FACEBOOK",
+              accessToken,
+            })
+            .then(processAuthSuccess)
+            .catch((err) => {
+              showToast(err.message || "Đăng nhập Facebook thất bại", "error");
+            });
+        } else {
+          showToast("Đăng nhập Facebook thất bại", "error");
+        }
+      },
+      { scope: "email" }
+    );
+  };
 
   return (
     <div className="login-page">
@@ -46,18 +114,27 @@ function Login() {
       <video autoPlay loop muted playsInline className="background-video">
         <source src={backgroundVideo} type="video/mp4" />
       </video>
-      
+
       {/* Back to Home Button */}
-      <button className="back-home-btn" onClick={() => navigate('/')}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
+      <button className="back-home-btn" onClick={() => navigate("/")}>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M19 12H5M12 19l-7-7 7-7" />
         </svg>
         <span>Trang chủ</span>
       </button>
-      
+
       {/* Website branding */}
-      <div className="website-branding" onClick={() => navigate('/')}>EVMARKETPLAY.VN</div>
-      
+      <div className="website-branding" onClick={() => navigate("/")}>
+        EVMARKETPLAY.VN
+      </div>
+
       <div className="container-fluid h-100">
         <div className="row h-100">
           <div className="col-12 d-flex align-items-center justify-content-center">
@@ -66,26 +143,28 @@ function Login() {
               <div className="language-selector">
                 <span>Tiếng Việt (VIE)</span>
                 <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
-                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path
+                    d="M1 1.5L6 6.5L11 1.5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
 
               {/* Login Content */}
               <div className="login-content">
                 <h1 className="login-title">Đăng Nhập</h1>
-                
-                {error && (
-                  <div className="alert alert-danger" role="alert">
-                    {error}
-                  </div>
-                )}
-                
+
+                {/* Đã xóa thẻ div hiển thị lỗi tĩnh */}
+
                 <form className="login-form" onSubmit={handleSubmit}>
                   <div className="mb-4">
                     <label className="form-label">Tên tài khoản</label>
-                    <input 
-                      type="text" 
-                      className="form-control custom-input" 
+                    <input
+                      type="text"
+                      className="form-control custom-input"
                       placeholder=""
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
@@ -97,37 +176,60 @@ function Login() {
                   <div className="mb-4">
                     <label className="form-label">MẬT KHẨU</label>
                     <div className="password-input">
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        className="form-control custom-input" 
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        className="form-control custom-input"
                         placeholder=""
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={loading}
                         required
                       />
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         className="password-toggle"
                         onClick={() => setShowPassword(!showPassword)}
                         disabled={loading}
                       >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
                           {showPassword ? (
                             <>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2"/>
-                              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                              <path
+                                d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              />
+                              <circle
+                                cx="12"
+                                cy="12"
+                                r="3"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              />
                             </>
                           ) : (
-                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" strokeWidth="2"/>
+                            <path
+                              d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            />
                           )}
                         </svg>
                       </button>
                     </div>
                   </div>
 
-                  <button type="submit" className="btn btn-primary login-button w-100" disabled={loading}>
-                    {loading ? 'Đang đăng nhập...' : 'Đăng Nhập'}
+                  <button
+                    type="submit"
+                    className="btn btn-primary login-button w-100"
+                    disabled={loading}
+                  >
+                    {loading ? "Đang đăng nhập..." : "Đăng Nhập"}
                   </button>
                 </form>
 
@@ -136,26 +238,54 @@ function Login() {
                 </div>
 
                 <div className="social-login">
-                  <button className="btn social-button google mb-3">
-                    <svg width="20" height="20" viewBox="0 0 24 24" className="me-2">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    Đăng nhập với Google
-                  </button>
-                  
-                  <button className="btn social-button facebook">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#1877F2" className="me-2">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  {/* Google login */}
+                  <GoogleLogin
+                    onSuccess={(credentialResponse) => {
+                      const accessToken = credentialResponse.credential;
+                      apiService
+                        .socialLogin({
+                          provider: "GOOGLE",
+                          accessToken,
+                        })
+                        .then(processAuthSuccess)
+                        .catch((err) => {
+                          showToast(err.message || "Đăng nhập Google thất bại", "error");
+                        });
+                    }}
+                    onError={() => {
+                      showToast("Đăng nhập Google thất bại", "error");
+                    }}
+                  />
+                  {/* Facebook login */}
+                  <button
+                    className="btn social-button facebook"
+                    onClick={handleFacebookLogin}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="#1877F2"
+                      className="me-2"
+                    >
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                     </svg>
                     Đăng nhập với Facebook
                   </button>
                 </div>
 
                 <div className="signup-link text-center mt-4">
-                  Chưa có tài khoản ? <a href="#" className="signup-text" onClick={(e) => { e.preventDefault(); navigate('/register'); }}>Đăng ký</a>
+                  Chưa có tài khoản ?{" "}
+                  <a
+                    href="#"
+                    className="signup-text"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/register");
+                    }}
+                  >
+                    Đăng ký
+                  </a>
                 </div>
               </div>
             </div>
@@ -163,7 +293,7 @@ function Login() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default Login
+export default Login;

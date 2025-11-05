@@ -1,5 +1,5 @@
-{
-    "configurations": [
+ {
+  "configurations": [
         {
             "type": "java",
             "name": "Spring Boot-Swp391Application<swp391>",
@@ -7,8 +7,11 @@
             "cwd": "${workspaceFolder}",
             "mainClass": "com.evtrading.swp391.Swp391Application",
             "projectName": "swp391",
-            "args": "",
-            "envFile": "${workspaceFolder}/.env"
+            "console": "integratedTerminal",
+            "args": "--security.oauth2.google.client-id=668404152143-6oofthiqpc6bi493q4rmd5l2ggqob609.apps.googleusercontent.com --security.oauth2.facebook.app-id=785985914430887 --security.oauth2.facebook.app-secret=b3e4382752b3cca34a9e7be4aa3ccf6d --debug",
+            "envFile": "${workspaceFolder}/BE/swp391/.env"
+
         }
     ]
-}
+ }
+    
