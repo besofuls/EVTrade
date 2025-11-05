@@ -16,9 +16,9 @@ import com.evtrading.swp391.service.BrandService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/brands")
@@ -40,6 +40,7 @@ public class BrandController {
         }
     }
 
+    @SecurityRequirements
     @Operation(summary = "Lấy danh sách thương hiệu", description = "Lấy tất cả thương hiệu")
     @GetMapping
     public ResponseEntity<List<BrandDTO>> getAllBrands() {

@@ -1,317 +1,161 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
+import apiService from "../services/apiService";
 import "./SellCars.css";
-import API_ENDPOINTS from "../services/apiService";
 
 function SellCars() {
   const navigate = useNavigate();
+  const [brands, setBrands] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Form state
   const [formData, setFormData] = useState({
-    category: "car",
-    brand: "",
-    model: "",
-    year: "",
-    price: "",
-    condition: "",
-    battery: "",
-    location: "",
-    phone: "",
+    title: "",
     description: "",
-    imagesPreview: [],
-    color: "",
+    price: "",
+    brandId: "",
+    categoryId: "",
     images: [],
+    // vehicle fields
+    model: "",
+    color: "",
+    year: "",
+    vehiclePrice: "",
+    vehicleCondition: "",
+    // battery fields
+    capacity: "",
+    voltage: "",
+    cycleCount: "",
+    batteryPrice: "",
+    batteryCondition: "",
+    type: "vehicle", // "vehicle" or "battery"
   });
 
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-
-  // get current user id from localStorage (set by login)
-  const currentUserId = (() => {
-    const id =
-      localStorage.getItem("userID") || localStorage.getItem("userId") || null;
-    return id ? Number(id) : null;
-  })();
-
+  // Check login & fetch brands/categories
   useEffect(() => {
-    // revoke object URLs when component unmounts
-    return () => {
-      formData.imagesPreview.forEach((url) => {
-        try {
-          URL.revokeObjectURL(url);
-        } catch {}
-      });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    async function fetchData() {
+      setLoading(true);
+      setError("");
+      const token = apiService.getAuthToken();
+      if (!token || apiService.isTokenExpired()) {
+        apiService.clearAuthToken();
+        navigate("/login");
+        return;
+      }
+      try {
+        // Đúng: gọi hàm trả về Promise
+        const brandsData = await apiService.getBrands();
+        setBrands(brandsData);
 
+        const categoriesData = await apiService.getCategories();
+        setCategories(categoriesData);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [navigate]);
+
+  // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Cloudinary config (provided)
-  const CLOUDINARY_CLOUD_NAME = "dy0wv3u6y";
-  const CLOUDINARY_UPLOAD_PRESET = "react_unsigned_preset";
-  const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`;
-
-  const uploadToCloudinary = async (file) => {
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) throw new Error("File quá lớn (max 5MB)");
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-    const res = await fetch(CLOUDINARY_UPLOAD_URL, {
-      method: "POST",
-      body: fd,
-    });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error("Upload thất bại: " + txt);
+    // Nếu thay đổi trường "price" thì cập nhật luôn các trường bên dưới
+    if (name === "price") {
+      setFormData((prev) => ({
+        ...prev,
+        price: value,
+        vehiclePrice: value,
+        batteryPrice: value,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
     }
-    const json = await res.json();
-    return json.secure_url || json.url;
   };
 
-  const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-
-    // limit number of images
-    const maxImages = 10;
-    const existing = formData.images.length;
-    const remaining = Math.max(0, maxImages - existing);
-    const toProcess = files.slice(0, remaining);
-
-    // create previews immediately
-    const newPreviews = toProcess.map((f) => URL.createObjectURL(f));
+  // Handle file upload
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
     setFormData((prev) => ({
       ...prev,
-      imagesPreview: [...prev.imagesPreview, ...newPreviews],
+      images: [...prev.images, ...files],
     }));
-
-    try {
-      const uploadedUrls = await Promise.all(
-        toProcess.map((f) => uploadToCloudinary(f))
-      );
-      setFormData((prev) => ({
-        ...prev,
-        images: [...(prev.images || []), ...uploadedUrls],
-      }));
-    } catch (err) {
-      console.error("Cloudinary upload error", err);
-      setError(err.message || "Lỗi khi upload ảnh");
-      // revoke previews for failed ones
-      newPreviews.forEach((u) => {
-        try {
-          URL.revokeObjectURL(u);
-        } catch {}
-      });
-      setFormData((prev) => ({
-        ...prev,
-        imagesPreview: prev.imagesPreview.slice(
-          0,
-          Math.max(0, prev.imagesPreview.length - newPreviews.length)
-        ),
-      }));
-    }
   };
 
+  // Remove image
   const removeImage = (index) => {
-    const preview = formData.imagesPreview[index];
-    try {
-      URL.revokeObjectURL(preview);
-    } catch {}
-    setFormData((prev) => {
-      const nextPreviews = prev.imagesPreview.filter((_, i) => i !== index);
-      const nextUrls = (prev.images || []).filter((_, i) => i !== index);
-      return { ...prev, imagesPreview: nextPreviews, images: nextUrls };
-    });
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+    // Nếu xóa ảnh chính thì reset về 0
+    if (primaryImageIndex === index) setPrimaryImageIndex(0);
+    else if (primaryImageIndex > index)
+      setPrimaryImageIndex(primaryImageIndex - 1);
   };
 
-  const validate = () => {
-    // basic validation
-    if (!currentUserId) {
-      setError("Bạn cần đăng nhập để đăng tin.");
-      return false;
-    }
-    if (!formData.brand) {
-      setError("Vui lòng chọn hãng.");
-      return false;
-    }
-    if (!formData.model) {
-      setError("Vui lòng nhập model.");
-      return false;
-    }
-    if (!formData.price || Number(formData.price) <= 0) {
-      setError("Giá phải lớn hơn 0.");
-      return false;
-    }
-    if (!formData.description) {
-      setError("Vui lòng nhập mô tả.");
-      return false;
-    }
-    if (!formData.location) {
-      setError("Vui lòng nhập địa chỉ.");
-      return false;
-    }
-    if (!formData.phone) {
-      setError("Vui lòng nhập số điện thoại.");
-      return false;
-    }
-    return true;
-  };
-
+  // Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    if (!validate()) return;
+    if (submitting) return; // Nếu đang gửi thì bỏ qua
     setSubmitting(true);
-
+    setError("");
+    const token = apiService.getAuthToken();
+    if (!token || apiService.isTokenExpired()) {
+      apiService.clearAuthToken();
+      navigate("/login");
+      return;
+    }
     try {
-      const token = localStorage.getItem("authToken");
-
-      const BRAND_MAP = {
-        VinFast: 1,
-        BYD: 2,
-        CARL: 3,
-        Hyundai: 4,
-        Popa: 5,
-        Tesla: 6,
-        CATL: 7,
-        Other: null,
-      };
-
-      const brandId = BRAND_MAP[formData.brand];
-      const categoryId = formData.category === "car" ? 1 : 2;
-
-      // Prepare the listing payload according to the API structure
-      const listingPayload = {
-        title: `${formData.brand} ${formData.model}`,
+      // Tạo object listing
+      const listingObj = {
+        title: formData.title,
         description: formData.description,
-        price: Number(formData.price),
-        categoryId: categoryId,
-        brandId: brandId,
-
-        // Vehicle info if category is car
-        ...(formData.category === "car"
-          ? {
-              vehicle: {
-                model: formData.model,
-                color: formData.color || "Not specified",
-                year: Number(formData.year) || new Date().getFullYear(),
-                price: Number(formData.price),
-                condition: formData.battery || "Used",
-              },
-            }
-          : {
-              // Battery info if category is battery
-              battery: {
-                capacity: Number(formData.battery) || 100,
-                voltage: 48,
-                cycleCount: 0,
-                price: Number(formData.price),
-                condition: formData.condition || "Used",
-              },
-            }),
-
-        // Image handling according to API structure
-        imageURLs: formData.images,
-        primaryImageIndex: 0, // First image is primary
+        price: formData.price,
+        brandId: formData.brandId,
+        categoryId: formData.categoryId,
+        primaryImageIndex: primaryImageIndex,
       };
 
-      console.debug("Sending listing payload:", listingPayload);
-
-      const resp = await fetch(API_ENDPOINTS.create_product_post, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(listingPayload),
-      });
-
-      let respBody;
-      try {
-        respBody = await resp.clone().json();
-        console.debug("Server response:", resp.status, respBody);
-      } catch (err) {
-        respBody = await resp.clone().text();
-        console.debug("Server response (text):", resp.status, respBody);
+      if (formData.type === "vehicle") {
+        listingObj.vehicle = {
+          model: formData.model,
+          color: formData.color,
+          year: formData.year,
+          price: formData.price,
+          condition: formData.vehicleCondition,
+        };
+      }
+      if (formData.type === "battery") {
+        listingObj.battery = {
+          capacity: formData.capacity,
+          voltage: formData.voltage,
+          cycleCount: formData.cycleCount,
+          price: formData.price,
+          condition: formData.batteryCondition,
+        };
       }
 
-      if (!resp.ok) {
-        throw new Error(
-          typeof respBody === "object"
-            ? JSON.stringify(respBody)
-            : respBody || `Error ${resp.status}`
-        );
-      }
+      // Gọi apiService để gửi bài đăng
+      await apiService.createProductPost(listingObj, formData.images);
 
-      alert(
-        "Đăng tin thành công. Tin sẽ ở trạng thái PENDING chờ admin duyệt."
-      );
+      alert("Đã đăng tin thành công! Tin của bạn đang chờ duyệt.");
       navigate("/buy");
     } catch (err) {
-      console.error("Create listing error:", err);
-      setError(err.message || "Lỗi khi tạo bài đăng");
+      setError(err.message);
     } finally {
-      setSubmitting(false);
+      setSubmitting(false); // Mở lại nút sau khi gửi xong
     }
   };
-=======
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
-import './SellCars.css'
-
-function SellCars() {
-  const navigate = useNavigate()
-  const [formData, setFormData] = useState({
-    category: 'car',
-    brand: '',
-    model: '',
-    year: '',
-    mileage: '',
-    price: '',
-    condition: '',
-    battery: '',
-    location: '',
-    phone: '',
-    description: '',
-    images: []
-  })
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
-
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files)
-    // Mock image upload
-    setFormData(prev => ({
-      ...prev,
-      images: [...prev.images, ...files.map(f => URL.createObjectURL(f))]
-    }))
-  }
-
-  const removeImage = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }))
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    alert('Đã đăng tin thành công! Tin của bạn đang chờ duyệt.')
-    navigate('/buy')
-  }
-
 
   return (
     <>
@@ -319,7 +163,6 @@ function SellCars() {
       <div className="sell-cars-page">
         <div className="container-fluid">
           <div className="sell-cars-content">
-
             <main className="sell-form-section">
               <div className="form-header">
                 <h2>Đăng tin bán sản phẩm</h2>
@@ -327,55 +170,115 @@ function SellCars() {
                   Điền đầy đủ thông tin để tin đăng của bạn được duyệt nhanh hơn
                 </p>
               </div>
-
+              {error && <div className="error">{error}</div>}
               <form onSubmit={handleSubmit} className="sell-form">
+                {/* Tiêu đề, mô tả, giá */}
+                <div className="form-group">
+                  <label className="form-label required">
+                    Tiêu đề bài đăng
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    required
+                    className="form-control"
+                    placeholder="VD: Xe điện Tesla Model 3 2023"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">Mô tả chi tiết</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    required
+                    rows="5"
+                    className="form-control"
+                    placeholder="VD: Xe mới sử dụng 6 tháng, còn bảo hành..."
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">Giá bán (VNĐ)</label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    required
+                    min="0"
+                    className="form-control"
+                    placeholder="VD: 50000000"
+                  />
+                </div>
+                {/* Brand & Category dropdown */}
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label required">Hãng sản xuất</label>
+                    <select
+                      name="brandId"
+                      value={formData.brandId}
+                      onChange={handleChange}
+                      required
+                      className="form-control"
+                    >
+                      <option value="">Chọn hãng</option>
+                      {brands.map((b) => (
+                        <option key={b.brandId} value={b.brandId}>
+                          {b.brandName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label required">Danh mục</label>
+                    <select
+                      name="categoryId"
+                      value={formData.categoryId}
+                      onChange={handleChange}
+                      required
+                      className="form-control"
+                    >
+                      <option value="">Chọn danh mục</option>
+                      {categories.map((c) => (
+                        <option key={c.categoryId} value={c.categoryId}>
+                          {c.categoryName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {/* Chọn loại sản phẩm */}
                 <div className="form-group">
                   <label className="form-label required">Loại sản phẩm</label>
-                  <div className="category-options">
-                    <label className="category-option">
+                  <div>
+                    <label>
                       <input
                         type="radio"
-                        name="category"
-                        value="car"
-                        checked={formData.category === "car"}
+                        name="type"
+                        value="vehicle"
+                        checked={formData.type === "vehicle"}
                         onChange={handleChange}
-                      />
-                      <span>🚗 Xe điện</span>
+                      />{" "}
+                      Xe điện
                     </label>
-                    <label className="category-option">
+                    <label style={{ marginLeft: 20 }}>
                       <input
                         type="radio"
-                        name="category"
+                        name="type"
                         value="battery"
-                        checked={formData.category === "battery"}
+                        checked={formData.type === "battery"}
                         onChange={handleChange}
-                      />
-                      <span>🔋 Pin sạc</span>
+                      />{" "}
+                      Pin sạc
                     </label>
                   </div>
                 </div>
-
-                {formData.category === "car" ? (
+                {/* Vehicle fields */}
+                {formData.type === "vehicle" && (
                   <>
                     <div className="form-row">
-                      <div className="form-group">
-                        <label className="form-label required">Hãng xe</label>
-                        <select
-                          name="brand"
-                          value={formData.brand}
-                          onChange={handleChange}
-                          required
-                          className="form-control"
-                        >
-                          <option value="">Chọn hãng xe</option>
-                          <option value="VinFast">VinFast</option>
-                          <option value="BYD">BYD</option>
-                          <option value="Hyundai">Hyundai</option>
-                          <option value="Tesla">Tesla</option>
-                          <option value="Other">Khác</option>
-                        </select>
-                      </div>
-
                       <div className="form-group">
                         <label className="form-label required">Dòng xe</label>
                         <input
@@ -383,13 +286,24 @@ function SellCars() {
                           name="model"
                           value={formData.model}
                           onChange={handleChange}
-                          placeholder="VD: VF8, Model 3"
                           required
                           className="form-control"
+                          placeholder="VD: Model 3"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label required">Màu xe</label>
+                        <input
+                          type="text"
+                          name="color"
+                          value={formData.color}
+                          onChange={handleChange}
+                          required
+                          className="form-control"
+                          placeholder="VD: Đỏ"
                         />
                       </div>
                     </div>
-
                     <div className="form-row">
                       <div className="form-group">
                         <label className="form-label required">
@@ -400,242 +314,129 @@ function SellCars() {
                           name="year"
                           value={formData.year}
                           onChange={handleChange}
-                          placeholder="VD: 2023"
+                          required
                           min="2015"
                           max={new Date().getFullYear()}
                           className="form-control"
+                          placeholder="VD: 2023"
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label">Màu sắc</label>
+                        <label className="form-label required">
+                          Giá xe (VNĐ)
+                        </label>
                         <input
-                          type="text"
-                          name="color"
-                          value={formData.color}
-                          onChange={handleChange}
-                          placeholder="VD: Trắng"
+                          type="number"
+                          name="vehiclePrice"
+                          value={formData.vehiclePrice}
+                          readOnly
+                          required
+                          min="0"
                           className="form-control"
+                          placeholder="VD: 40000000"
                         />
                       </div>
                     </div>
-
                     <div className="form-group">
-                      <label className="form-label">Tình trạng pin</label>
+                      <label className="form-label required">
+                        Tình trạng xe
+                      </label>
                       <input
                         type="text"
-                        name="battery"
-                        value={formData.battery}
+                        name="vehicleCondition"
+                        value={formData.vehicleCondition}
                         onChange={handleChange}
-                        placeholder="VD: Pin còn 95%"
+                        required
                         className="form-control"
+                        placeholder="VD: Đã sử dụng"
                       />
                     </div>
                   </>
-                ) : (
+                )}
+                {/* Battery fields */}
+                {formData.type === "battery" && (
                   <>
                     <div className="form-row">
                       <div className="form-group">
-                        <label className="form-label required">Loại pin</label>
-                        <input
-                          type="text"
-                          name="model"
-                          value={formData.model}
-                          onChange={handleChange}
-                          placeholder="VD: Lithium-ion 48V 100Ah"
-                          required
-                          className="form-control"
-                        />
-                      </div>
-
-                      <div className="form-group">
                         <label className="form-label required">
-                          Hãng sản xuất
+                          Dung lượng (kWh)
                         </label>
                         <input
-                          type="text"
-                          name="brand"
-                          value={formData.brand}
+                          type="number"
+                          name="capacity"
+                          value={formData.capacity}
                           onChange={handleChange}
-                          placeholder="VD: CATL"
                           required
+                          min="0"
                           className="form-control"
+                          placeholder="VD: 75.0"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label required">
+                          Điện áp (V)
+                        </label>
+                        <input
+                          type="number"
+                          name="voltage"
+                          value={formData.voltage}
+                          onChange={handleChange}
+                          required
+                          min="0"
+                          className="form-control"
+                          placeholder="VD: 4000000"
                         />
                       </div>
                     </div>
-
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label required">
+                          Số lần sạc
+                        </label>
+                        <input
+                          type="number"
+                          name="cycleCount"
+                          value={formData.cycleCount}
+                          onChange={handleChange}
+                          required
+                          min="0"
+                          className="form-control"
+                          placeholder="VD: 50"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label required">
+                          Giá pin (VNĐ)
+                        </label>
+                        <input
+                          type="number"
+                          name="batteryPrice"
+                          value={formData.batteryPrice}
+                          readOnly
+                          required
+                          min="0"
+                          className="form-control"
+                          placeholder="VD: 2500"
+                        />
+                      </div>
+                    </div>
                     <div className="form-group">
-                      <label className="form-label required">Tình trạng</label>
+                      <label className="form-label required">
+                        Tình trạng pin
+                      </label>
                       <input
                         type="text"
-                        name="condition"
-                        value={formData.condition}
-                        onChange={handleChange}
-                        placeholder="VD: Còn 90% dung lượng"
-=======
-          {/* Form */}
-          <main className="sell-form-section">
-            <div className="form-header">
-              <h2>Đăng tin bán sản phẩm</h2>
-              <p>Điền đầy đủ thông tin để tin đăng của bạn được duyệt nhanh hơn</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="sell-form">
-              {/* Loại sản phẩm */}
-              <div className="form-group">
-                <label className="form-label required">Loại sản phẩm</label>
-                <div className="category-options">
-                  <label className="category-option">
-                    <input
-                      type="radio"
-                      name="category"
-                      value="car"
-                      checked={formData.category === 'car'}
-                      onChange={handleChange}
-                      required
-                    />
-                    <span>🚗 Xe điện</span>
-                  </label>
-                  <label className="category-option">
-                    <input
-                      type="radio"
-                      name="category"
-                      value="battery"
-                      checked={formData.category === 'battery'}
-                      onChange={handleChange}
-                    />
-                    <span>🔋 Pin sạc</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Thông tin xe điện */}
-              {formData.category === 'car' && (
-                <>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label className="form-label required">Hãng xe</label>
-                      <select
-                        name="brand"
-                        value={formData.brand}
+                        name="batteryCondition"
+                        value={formData.batteryCondition}
                         onChange={handleChange}
                         required
                         className="form-control"
-                      >
-                        <option value="">Chọn hãng xe</option>
-                        <option value="VinFast">VinFast</option>
-                        <option value="BYD">BYD</option>
-                        <option value="Hyundai">Hyundai</option>
-                        <option value="Tesla">Tesla</option>
-                        <option value="Other">Khác</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label required">Dòng xe</label>
-                      <input
-                        type="text"
-                        name="model"
-                        value={formData.model}
-                        onChange={handleChange}
-                        placeholder="VD: VF8, Model 3, Kona Electric..."
-                        required
-                        className="form-control"
+                        placeholder="VD: Mới"
                       />
                     </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label className="form-label required">Năm sản xuất</label>
-                      <input
-                        type="number"
-                        name="year"
-                        value={formData.year}
-                        onChange={handleChange}
-                        placeholder="VD: 2023"
-                        required
-                        min="2015"
-                        max={new Date().getFullYear()}
-                        className="form-control"
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label required">Số km đã đi</label>
-                      <input
-                        type="text"
-                        name="mileage"
-                        value={formData.mileage}
-                        onChange={handleChange}
-                        placeholder="VD: 15,000 km"
-                        required
-                        className="form-control"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Tình trạng pin</label>
-                    <input
-                      type="text"
-                      name="battery"
-                      value={formData.battery}
-                      onChange={handleChange}
-                      placeholder="VD: Pin còn 95%, sạc đầy chạy được 350km"
-                      className="form-control"
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Thông tin pin sạc */}
-              {formData.category === 'battery' && (
-                <>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label className="form-label required">Loại pin</label>
-                      <input
-                        type="text"
-                        name="model"
-                        value={formData.model}
-                        onChange={handleChange}
-                        placeholder="VD: Lithium-ion 48V 100Ah"
-
-                        required
-                        className="form-control"
-                      />
-                    </div>
-
                   </>
                 )}
-
-                <div className="form-group">
-                  <label className="form-label required">Giá bán (VNĐ)</label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleChange}
-                    placeholder="VD: 500000000"
-                    required
-                    min="0"
-                    className="form-control"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label required">Mô tả chi tiết</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    placeholder="Mô tả..."
-                    required
-                    rows="6"
-                    className="form-control"
-                  />
-                </div>
-
+                {/* Images */}
                 <div className="form-group">
                   <label className="form-label required">
                     Hình ảnh sản phẩm
@@ -652,88 +453,43 @@ function SellCars() {
                       <span>📷 Chọn ảnh</span>
                     </label>
                     <p className="upload-hint">
-                      Tối đa 10 ảnh, mỗi ảnh không quá 5MB — upload trực tiếp
-                      lên Cloudinary
+                      Tối đa 10 ảnh, mỗi ảnh không quá 5MB
                     </p>
                   </div>
-
-                  {formData.imagesPreview.length > 0 && (
+                  {formData.images.length > 0 && (
                     <div className="image-preview-grid">
-                      {formData.imagesPreview.map((img, index) => (
-                        <div key={index} className="image-preview">
-                          <img src={img} alt={`Preview ${index + 1}`} />
-                          <button
-                            type="button"
-                            className="remove-image-btn"
-                            onClick={() => removeImage(index)}
-                          >
-                            ×
-                          </button>
+                      {formData.images.map((img, index) => (
+                        <div key={index} className="image-preview-with-radio">
+                          <div className="image-preview">
+                            <img
+                              src={URL.createObjectURL(img)}
+                              alt={`Preview ${index + 1}`}
+                            />
+                            <button
+                              type="button"
+                              className="remove-image-btn"
+                              onClick={() => removeImage(index)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div className="primary-radio-below">
+                            <label>
+                              <input
+                                type="radio"
+                                name="primaryImage"
+                                checked={primaryImageIndex === index}
+                                onChange={() => setPrimaryImageIndex(index)}
+                              />
+                              Ảnh chính
+                            </label>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-
-                <div className="form-section-title">Thông tin liên hệ</div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label required">Địa chỉ</label>
-                    <input
-                      type="text"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleChange}
-                      placeholder="VD: TP. Hồ Chí Minh"
-=======
-
-                    <div className="form-group">
-                      <label className="form-label required">Hãng sản xuất</label>
-                      <input
-                        type="text"
-                        name="brand"
-                        value={formData.brand}
-                        onChange={handleChange}
-                        placeholder="VD: CATL, LG Chem, Panasonic..."
-                        required
-                        className="form-control"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label required">Tình trạng</label>
-                    <input
-                      type="text"
-                      name="condition"
-                      value={formData.condition}
-                      onChange={handleChange}
-                      placeholder="VD: Còn 90% dung lượng, đã dùng 2 năm"
-
-                      required
-                      className="form-control"
-                    />
-                  </div>
-
-
-                  <div className="form-group">
-                    <label className="form-label required">Số điện thoại</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="VD: 0901234567"
-                      required
-                      pattern="[0-9]{10}"
-                      className="form-control"
-                    />
-                  </div>
-                </div>
-
-                {error && <div className="form-error">{error}</div>}
-
+                {/* Submit */}
                 <div className="form-actions">
                   <button
                     type="button"
@@ -742,17 +498,13 @@ function SellCars() {
                   >
                     Hủy
                   </button>
-                  <button
-                    type="submit"
-                    className="btn-submit"
-                    disabled={submitting}
-                  >
-                    {submitting ? "Đang gửi..." : "Đăng tin"}
+                  <button type="submit" className="btn-submit">
+                    Đăng tin
                   </button>
                 </div>
               </form>
             </main>
-
+            {/* Sidebar Tips */}
             <aside className="tips-sidebar">
               <div className="tips-card">
                 <h3>💡 Mẹo đăng tin hiệu quả</h3>
@@ -764,7 +516,6 @@ function SellCars() {
                   <li>Cung cấp đầy đủ thông tin liên hệ</li>
                 </ul>
               </div>
-
               <div className="tips-card">
                 <h3>⚠️ Lưu ý</h3>
                 <ul className="tips-list">
@@ -778,152 +529,14 @@ function SellCars() {
           </div>
         </div>
       </div>
+      {submitting && (
+        <div className="submit-overlay">
+          <div className="submit-spinner"></div>
+          <div>Đang gửi bài đăng...</div>
+        </div>
+      )}
     </>
   );
 }
 
 export default SellCars;
-=======
-                </>
-              )}
-
-              {/* Giá bán */}
-              <div className="form-group">
-                <label className="form-label required">Giá bán (VNĐ)</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  placeholder="VD: 500000000"
-                  required
-                  min="0"
-                  className="form-control"
-                />
-              </div>
-
-              {/* Mô tả */}
-              <div className="form-group">
-                <label className="form-label required">Mô tả chi tiết</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Mô tả chi tiết về sản phẩm: tình trạng, lý do bán, lịch sử bảo dưỡng..."
-                  required
-                  rows="6"
-                  className="form-control"
-                />
-              </div>
-
-              {/* Hình ảnh */}
-              <div className="form-group">
-                <label className="form-label required">Hình ảnh sản phẩm</label>
-                <div className="image-upload-section">
-                  <label className="image-upload-btn">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      style={{ display: 'none' }}
-                    />
-                    <span>📷 Chọn ảnh</span>
-                  </label>
-                  <p className="upload-hint">Tối đa 10 ảnh, mỗi ảnh không quá 5MB</p>
-                </div>
-
-                {formData.images.length > 0 && (
-                  <div className="image-preview-grid">
-                    {formData.images.map((img, index) => (
-                      <div key={index} className="image-preview">
-                        <img src={img} alt={`Preview ${index + 1}`} />
-                        <button
-                          type="button"
-                          className="remove-image-btn"
-                          onClick={() => removeImage(index)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Thông tin liên hệ */}
-              <div className="form-section-title">Thông tin liên hệ</div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label required">Địa chỉ</label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    placeholder="VD: TP. Hồ Chí Minh"
-                    required
-                    className="form-control"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label required">Số điện thoại</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="VD: 0901234567"
-                    required
-                    pattern="[0-9]{10}"
-                    className="form-control"
-                  />
-                </div>
-              </div>
-
-              {/* Submit */}
-              <div className="form-actions">
-                <button type="button" className="btn-cancel" onClick={() => navigate('/')}>
-                  Hủy
-                </button>
-                <button type="submit" className="btn-submit">
-                  Đăng tin
-                </button>
-              </div>
-            </form>
-          </main>
-
-          {/* Sidebar Tips */}
-          <aside className="tips-sidebar">
-            <div className="tips-card">
-              <h3>💡 Mẹo đăng tin hiệu quả</h3>
-              <ul className="tips-list">
-                <li>Chụp ảnh rõ nét, đầy đủ các góc của sản phẩm</li>
-                <li>Mô tả chi tiết, trung thực về tình trạng</li>
-                <li>Ghi rõ lý do bán và lịch sử bảo dưỡng</li>
-                <li>Đặt giá hợp lý với thị trường</li>
-                <li>Cung cấp đầy đủ thông tin liên hệ</li>
-              </ul>
-            </div>
-
-            <div className="tips-card">
-              <h3>⚠️ Lưu ý</h3>
-              <ul className="tips-list">
-                <li>Không đăng tin trùng lặp</li>
-                <li>Không sử dụng ảnh mạng</li>
-                <li>Không gian lận về thông tin sản phẩm</li>
-                <li>Tuân thủ quy định về giá cả</li>
-              </ul>
-            </div>
-          </aside>
-        </div>
-      </div>
-      </div>
-    </>
-  )
-}
-
-export default SellCars
-

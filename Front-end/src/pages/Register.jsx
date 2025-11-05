@@ -2,9 +2,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import backgroundVideo from '../assets/33vfxVliVS7mnZQ8o2LDBHzOqvL.mp4'
-
 import apiService from '../services/apiService'
-
 import './Register.css'
 
 function Register() {
@@ -118,7 +116,6 @@ function Register() {
         <source src={backgroundVideo} type="video/mp4" />
       </video>
       
-
       {/* Back to Home Button */}
       <button className="back-home-btn" onClick={() => navigate('/')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -127,8 +124,6 @@ function Register() {
         <span>Trang chủ</span>
       </button>
       
-
-
       {/* Website branding */}
       <div className="website-branding" onClick={() => navigate('/')}>EVMARKETPLAY.VN</div>
       

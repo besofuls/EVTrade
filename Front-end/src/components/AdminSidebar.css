@@ -1,0 +1,47 @@
+.admin-dashboard-sidebar {
+  width: 220px;
+  background: #1976d2;
+  color: #fff;
+  padding: 32px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.admin-logo {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 32px;
+  letter-spacing: 1px;
+}
+
+.admin-menu {
+  list-style: none;
+  padding: 0;
+  width: 100%;
+}
+
+.admin-menu li {
+  padding: 14px 32px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+.admin-menu li.active,
+.admin-menu li:hover {
+  background: #1565c0;
+}
+
+.admin-home-btn {
+  margin-top: 32px;
+  background: #fff;
+  color: #FFD700;
+  border: 2px solid #FFD700;
+  border-radius: 7px;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}

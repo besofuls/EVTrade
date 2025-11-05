@@ -16,9 +16,9 @@ import com.evtrading.swp391.service.CategoryService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/categories")
@@ -40,6 +40,7 @@ public class CategoryController {
         }
     }
 
+    @SecurityRequirements
     @Operation(summary = "Lấy danh sách danh mục", description = "Lấy tất cả danh mục")
     @GetMapping
     public ResponseEntity<List<CategoryDTO>> getAllCategories() {

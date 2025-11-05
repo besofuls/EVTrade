@@ -2,11 +2,9 @@
 .register-page {
   width: 100vw;
   height: 100vh;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 0;
   margin: 0;
   position: fixed;
@@ -17,7 +15,6 @@
 
 /* Video Background */
 .background-video {
-
   position: absolute;
   top: 0;
   left: 0;
@@ -73,29 +70,6 @@
 
 .back-home-btn span {
   font-weight: 700;
-
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  object-fit: cover;
-  z-index: 0;
-  min-width: 100%;
-  min-height: 100%;
-}
-
-/* Overlay to darken video slightly */
-.register-page::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 1;
-
 }
 
 .website-branding {
@@ -106,10 +80,7 @@
   font-weight: 900;
   color: #FFD700;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
-
   z-index: 100;
-  z-index: 200;
-
   letter-spacing: 4px;
   white-space: nowrap;
   font-family: 'Arial Black', 'Helvetica Neue', sans-serif;
@@ -118,7 +89,6 @@
 }
 
 .register-card {
-
   background: white;
   border-radius: 16px;
   box-shadow: 0 20px 40px rgba(0,0,0,0.15);
@@ -148,25 +118,6 @@
 
 .register-card::-webkit-scrollbar-thumb {
   background: transparent;
-=======
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: -5px 0 30px rgba(0,0,0,0.1);
-  width: 33.33%;
-  min-width: 450px;
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  overflow-y: auto;
-  z-index: 10;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-
 }
 
 .language-selector {
@@ -180,7 +131,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  z-index: 20;
+  z-index: 5;
 }
 
 .language-selector svg {
@@ -188,20 +139,11 @@
 }
 
 .register-content {
-
   padding: 28px 32px 26px;
 }
 
 .register-title {
   font-size: 24px;
-=======
-  padding: 30px 50px;
-  width: 100%;
-}
-
-.register-title {
-  font-size: 28px;
-
   font-weight: 800;
   color: #000;
   margin: 0 0 16px 0;
@@ -224,14 +166,9 @@
   background: transparent !important;
   font-size: 14px;
   color: #333;
-
   padding: 8px 4px;
   box-shadow: none !important;
   height: 40px;
-
-  padding: 12px 4px;
-  box-shadow: none !important;
-  height: 45px;
 }
 
 .custom-input:focus {
@@ -280,7 +217,6 @@
 }
 
 .register-button {
-
   height: 42px;
   background: #FFD700 !important;
   border: none !important;
@@ -288,14 +224,6 @@
   font-size: 14px;
   font-weight: 700;
   margin-top: 10px;
-
-  height: 50px;
-  background: #FFD700 !important;
-  border: none !important;
-  border-radius: 8px !important;
-  font-size: 16px;
-  font-weight: 700;
-  margin-top: 20px;
   letter-spacing: 0.5px;
   color: #333 !important;
 }
@@ -308,9 +236,7 @@
 
 .divider {
   text-align: center;
-
   margin: 14px 0;
-  margin: 15px 0;
   position: relative;
 }
 
@@ -343,21 +269,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
   gap: 8px;
   height: 38px;
   border: 2px solid #e0e0e0 !important;
   background: white !important;
   border-radius: 8px !important;
   font-size: 12px;
-
-  gap: 10px;
-  height: 48px;
-  border: 2px solid #e0e0e0 !important;
-  background: white !important;
-  border-radius: 8px !important;
-  font-size: 14px;
-
   font-weight: 600;
   color: #333 !important;
   transition: all 0.3s ease;

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 
-const ProtectedRoute = ({ children, allowRoles }) => {
+const ProtectedRoute = ({ children }) => {
   // Check if user is authenticated by looking for userData in localStorage
-  const userData = localStorage.getItem('user') || localStorage.getItem('userData');
+  const userData = localStorage.getItem('userData');
   
   console.log('ProtectedRoute: Checking userData:', userData ? 'Found' : 'Not found');
   
@@ -16,16 +16,6 @@ const ProtectedRoute = ({ children, allowRoles }) => {
   try {
     // Verify that userData is valid JSON
     const parsedData = JSON.parse(userData);
-
-    // Optional role guarding
-    if (Array.isArray(allowRoles) && allowRoles.length > 0) {
-      const roleName = parsedData?.role?.roleName || parsedData?.roleName || parsedData?.role;
-      if (!roleName || !allowRoles.map(r => r.toLowerCase()).includes(String(roleName).toLowerCase())) {
-        console.log('ProtectedRoute: Role not allowed, redirecting to home');
-        return <Navigate to="/" replace />;
-      }
-    }
-
     console.log('ProtectedRoute: Valid userData found, allowing access:', parsedData);
     return children;
   } catch (error) {

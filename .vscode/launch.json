@@ -9,7 +9,8 @@
             "projectName": "swp391",
             "console": "integratedTerminal",
             "args": "--security.oauth2.google.client-id=668404152143-6oofthiqpc6bi493q4rmd5l2ggqob609.apps.googleusercontent.com --security.oauth2.facebook.app-id=785985914430887 --security.oauth2.facebook.app-secret=b3e4382752b3cca34a9e7be4aa3ccf6d --debug",
-            "envFile": "${workspaceFolder}/BE/swp391/.env",
+            "envFile": "${workspaceFolder}/BE/swp391/.env"
+
         }
     ]
  }

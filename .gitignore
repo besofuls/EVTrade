@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # IDE files
 .idea/
 *.iml
@@ -26,6 +25,7 @@ pom.xml.releaseBackup
 pom.xml.versionsBackup
 pom.xml.next
 release.properties
+!pom.xml
 
 # Gradle
 .gradle/
@@ -36,21 +36,23 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# OS files
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
+
+# Logs
+*.log
+
+# Compiled Java class files
+*.class
+
+# Package Files
+*.jar
+*.war
+*.ear
+
+# Spring Boot
+*.pid
+
+BE/swp391/src/main/resources/application.properties

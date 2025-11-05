@@ -1,14 +1,14 @@
 {
+    "version": "0.2.0",
     "configurations": [
+        
         {
             "type": "java",
-            "name": "Spring Boot-Swp391Application<swp391>",
+            "name": "Launch Spring Boot App",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.evtrading.swp391.Swp391Application",
             "projectName": "swp391",
-            "args": "",
-            "envFile": "${workspaceFolder}/.env"
+            "envFile": "${workspaceFolder}/swp391/.env"
         }
     ]
 }

@@ -3,48 +3,78 @@ package com.evtrading.swp391.config;
 import org.springframework.util.AntPathMatcher;
 
 /**
- * Centralizes the definition of publicly accessible HTTP paths so that
- * security-related components (filters, config) share the same source
- * of truth.
+ * Centralizes security path patterns so the configuration has a single source of truth.
  */
 public final class SecurityPaths {
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
+
+    private static final String[] AUTH_ENDPOINTS = new String[] {
+        "/api/auth/**"
+    };
+
     private static final String[] PUBLIC_ENDPOINTS = new String[] {
-            "/api/auth/**",
-            "/swagger-ui/**",
-            "/v3/api-docs/**",
+        "/swagger-ui/**",
+        "/v3/api-docs/**",
+        "/api/vnpay/ipn",
+        "/api/vnpay/callback",
+        "/api/listings/search",
+        "/api/brands",
+        "/api/categories",
         // DocuSeal webhook callback (no auth; verified by header secret)
-        "/api/contracts/webhook"
+        "/api/contracts/webhook",
+        "/api/system-config/public/**", // Thêm dòng này
+
+    };
+
+    private static final String[] MEMBER_ENDPOINTS = new String[] {
+        "/api/orders/**",
+        "/api/transactions/**",
+        "/api/listings/**"
+
+    };
+
+    private static final String[] MODERATOR_ENDPOINTS = new String[] {
+        // Add moderator-only endpoints here
+    };
+
+    private static final String[] ADMIN_ENDPOINTS = new String[] {
+        // Add admin-only endpoints here
     };
 
     private SecurityPaths() {
         // Utility class
     }
 
-    /**
-     * Returns the list of public endpoints. The returned array is a copy to
-     * prevent callers from mutating the internal static state.
-     */
+    public static String[] authEndpoints() {
+        return AUTH_ENDPOINTS.clone();
+    }
+
     public static String[] publicEndpoints() {
         return PUBLIC_ENDPOINTS.clone();
     }
 
-    /**
-     * Determines whether the provided request path should be treated as public.
-     *
-     * @param servletPath the servlet path extracted from the incoming request
-     * @return {@code true} if the path matches one of the public endpoint
-     * patterns; {@code false} otherwise
-     */
-    public static boolean isPublicPath(String servletPath) {
-        if (servletPath == null) {
-            return false;
-        }
+    public static String[] memberEndpoints() {
+        return MEMBER_ENDPOINTS.clone();
+    }
 
-        for (String pattern : PUBLIC_ENDPOINTS) {
-            if (PATH_MATCHER.match(pattern, servletPath)) {
+    public static String[] moderatorEndpoints() {
+        return MODERATOR_ENDPOINTS.clone();
+    }
+
+    public static String[] adminEndpoints() {
+        return ADMIN_ENDPOINTS.clone();
+    }
+
+    public static boolean isPublicPath(String servletPath) {
+        return matches(servletPath, PUBLIC_ENDPOINTS) || matches(servletPath, AUTH_ENDPOINTS);
+    }
+
+    private static boolean matches(String path, String[] patterns) {
+        if (path == null || patterns == null) return false;
+        for (String pattern : patterns) {
+            if (PATH_MATCHER.match(pattern, path)) {
                 return true;
             }
         }

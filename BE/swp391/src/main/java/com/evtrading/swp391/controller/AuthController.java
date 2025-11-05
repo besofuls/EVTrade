@@ -1,6 +1,8 @@
 package com.evtrading.swp391.controller;
 
 import com.evtrading.swp391.dto.AuthResponseDTO;
+import com.evtrading.swp391.dto.GoogleCodeDTO;
+import com.evtrading.swp391.dto.GoogleTokenResponse;
 import com.evtrading.swp391.dto.LoginRequestDTO;
 import com.evtrading.swp391.dto.RegisterRequestDTO;
 import com.evtrading.swp391.dto.SocialLoginRequestDTO;
@@ -9,18 +11,26 @@ import com.evtrading.swp391.repository.UserRepository;
 import com.evtrading.swp391.security.JwtProvider;
 import com.evtrading.swp391.service.SocialAuthService;
 import com.evtrading.swp391.service.UserService;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.util.Value;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 /**
  * Controller xử lý các yêu cầu xác thực như đăng nhập và đăng ký
@@ -98,9 +108,10 @@ public class AuthController {
 
             // Tạo JWT bằng JwtProvider
             String jwt = jwtProvider.createToken(
-                user.getUserID(),
-                user.getEmail(),
-                user.getRole().getRoleName()
+                    user.getUserID(),
+                    user.getUsername(),
+                    user.getEmail(),
+                    user.getRole().getRoleName()
             );
 
             AuthResponseDTO response = new AuthResponseDTO(
@@ -173,4 +184,80 @@ public class AuthController {
         var token = socialAuthService.login(request);
         return ResponseEntity.ok(token);
   }
+
+
+ @Value("${spring.security.oauth2.client.registration.google.client-id}")
+private String clientId;
+
+@Value("${spring.security.oauth2.client.registration.google.client-secret}")
+private String clientSecret;
+
+// Đổi code lấy token từ Google
+private GoogleTokenResponse exchangeCodeForTokens(String code) {
+    RestTemplate rest = new RestTemplate();
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+    MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+    map.add("code", code);
+    map.add("client_id", clientId);
+    map.add("client_secret", clientSecret);
+    map.add("redirect_uri", "http://localhost:8080/api/auth/google/callback");
+    map.add("grant_type", "authorization_code");
+
+    HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
+
+    ResponseEntity<GoogleTokenResponse> response = rest.postForEntity(
+        "https://oauth2.googleapis.com/token",
+        request,
+        GoogleTokenResponse.class
+    );
+
+    return response.getBody();
+}
+
+// Thêm endpoint mới cho server-side Google OAuth
+@SecurityRequirements
+@PostMapping("/google/code")
+public ResponseEntity<?> googleServerSideLogin(@RequestBody GoogleCodeDTO dto) {
+    try {
+        String code = dto.getCode();
+
+        // 1. Đổi code lấy token (gồm id_token)
+        GoogleTokenResponse tokenResponse = exchangeCodeForTokens(code);
+
+        // 2. Dùng GoogleAuthVerifier để verify id_token
+        GoogleIdToken.Payload payload = socialAuthService.getGoogleVerifier().verify(tokenResponse.getId_token());
+        if (payload == null) {
+            throw new RuntimeException("Invalid ID token from Google");
+        }
+
+        // 3. Tái sử dụng logic xử lý user từ SocialAuthService
+        var user = socialAuthService.processGoogleUser(payload);
+
+        // 4. Tạo JWT như cũ
+        String jwt = jwtProvider.createToken(
+                user.getUserID(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole().getRoleName()
+        );
+
+        AuthResponseDTO response = new AuthResponseDTO(
+            jwt,
+            user.getUserID(),
+            user.getUsername(),
+            user.getEmail(),
+            user.getRole().getRoleName()
+        );
+
+        return ResponseEntity.ok(response);
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        return ResponseEntity.badRequest()
+            .body("Google login failed: " + e.getMessage());
+    }
+}
 }

@@ -15,6 +15,11 @@ public class Transaction {
     @JoinColumn(name = "orderID", unique = true)
     private Order order;
 
+    // Dùng khi transaction không gắn với order (dịch vụ, phí, quảng cáo...)
+    private String type;           // ORDER, SERVICE, ADVERT, FEE
+    private String referenceType;  // LISTING_EXTEND, PROMOTION, SUBSCRIPTION
+    private Integer referenceID;
+
     private BigDecimal totalAmount;
     private BigDecimal paidAmount;
     private Date transactionDate;
@@ -27,6 +32,12 @@ public class Transaction {
     public void setTransactionID(Integer transactionID) { this.transactionID = transactionID; }
     public Order getOrder() { return order; }
     public void setOrder(Order order) { this.order = order; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+    public String getReferenceType() { return referenceType; }
+    public void setReferenceType(String referenceType) { this.referenceType = referenceType; }
+    public Integer getReferenceID() { return referenceID; }
+    public void setReferenceID(Integer referenceID) { this.referenceID = referenceID; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount;}
     public BigDecimal getPaidAmount() { return paidAmount; }

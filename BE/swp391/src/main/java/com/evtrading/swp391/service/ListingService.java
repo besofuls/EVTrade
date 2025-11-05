@@ -4,47 +4,50 @@ import com.evtrading.swp391.dto.*;
 import com.evtrading.swp391.entity.*;
 import com.evtrading.swp391.mapper.ListingMapper;
 import com.evtrading.swp391.repository.*;
+import com.evtrading.swp391.util.VnpayUtil;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.Calendar;
 
 @Service
 public class ListingService {
 
     @Autowired
     private ListingRepository listingRepository;
-    
+
     @Autowired
     private VehicleRepository vehicleRepository;
-    
+
     @Autowired
     private BatteryRepository batteryRepository;
-    
+
     @Autowired
     private CategoryRepository categoryRepository;
-    
+
     @Autowired
     private BrandRepository brandRepository;
-    
+
     @Autowired
     private UserRepository userRepository;
-    
+
     @Autowired
     private ListingImageRepository listingImageRepository;
-    
+
     @Autowired
     private CloudinaryService cloudinaryService;
-    
+
     @Autowired
     private ListingMapper listingMapper;
 
@@ -53,6 +56,25 @@ public class ListingService {
 
     @Autowired
     private ComplaintRepository complaintRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private SystemConfigRepository systemConfigRepository; // Giả sử bạn có repo này
+
+    // Thêm các giá trị từ application.properties
+    @Value("${vnpay.tmnCode}")
+    private String vnpTmnCode;
+    @Value("${vnpay.hashSecret}")
+    private String vnpHashSecret;
+    @Value("${vnpay.payUrl}")
+    private String vnpPayUrl;
+    @Value("${vnpay.returnUrl}")
+    private String vnpReturnUrl;
 
     /**
      * Tạo một bài đăng mới
@@ -66,14 +88,14 @@ public class ListingService {
         // 2. Lấy category và brand
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Category not found"));
-                
+
         Brand brand = brandRepository.findById(dto.getBrandId())
                 .orElseThrow(() -> new RuntimeException("Brand not found"));
 
         // 3. Tạo và lưu Vehicle hoặc Battery tùy thuộc vào loại sản phẩm
         Vehicle vehicle = null;
         Battery battery = null;
-        
+
         if (dto.getVehicle() != null) {
             vehicle = createVehicleFromDTO(dto.getVehicle(), category, brand);
         } else if (dto.getBattery() != null) {
@@ -92,11 +114,13 @@ public class ListingService {
         listing.setPrice(dto.getPrice());
         listing.setStatus("PENDING"); // Trạng thái mặc định khi tạo mới
         listing.setCreatedAt(new Date());
+
         
+
         // Nếu là xe
         if (vehicle != null) {
             listing.setVehicle(vehicle);
-        } 
+        }
         // Nếu là pin
         else if (battery != null) {
             listing.setBattery(battery);
@@ -121,7 +145,8 @@ public class ListingService {
         // If flagged, create automated complaint for moderators to review
         if (spamResult.flagged) {
             Complaint c = new Complaint();
-            c.setUser(user); // reporter is system; using the listing owner as reference here might be ambiguous
+            c.setUser(user); // reporter is system; using the listing owner as reference here might be
+                             // ambiguous
             c.setListing(savedListing);
             c.setContent("Automated spam detection: " + String.join("; ", spamResult.reasons));
             c.setStatus("Pending");
@@ -138,9 +163,9 @@ public class ListingService {
     public ListingResponseDTO getListingById(Integer id) {
         Listing listing = listingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Listing not found with id: " + id));
-                
+
         List<ListingImage> images = listingImageRepository.findByListingListingID(id);
-        
+
         return convertToListingResponseDTO(listing, images);
     }
 
@@ -148,97 +173,127 @@ public class ListingService {
      * Cập nhật một bài đăng
      */
     @Transactional
-    public ListingResponseDTO updateListing(Integer listingId, ListingRequestDTO dto, String username) {
-        // 1. Tìm listing cần cập nhật và kiểm tra quyền
+    public ListingResponseDTO updateListing(Integer listingId, ListingRequestDTO dto, List<MultipartFile> images,
+            String username) {
         Listing listing = listingRepository.findById(listingId)
                 .orElseThrow(() -> new RuntimeException("Listing not found with id: " + listingId));
-                
-        // Kiểm tra quyền
+        
+        System.out.println(">>> [updateListing] Listing owner: " + listing.getUser().getUsername());
+        System.out.println(">>> [updateListing] Current user: " + username);
+
+        // Chỉ cho phép cập nhật nếu trạng thái là FLAGGED hoặc REJECTED
+        String status = listing.getStatus();
+        if (!"FLAGGED".equals(status) && !"REJECTED".equals(status)) {
+            throw new RuntimeException("Only flagged or rejected listings can be updated");
+        }
+
+        // Chỉ chủ bài đăng được cập nhật
         if (!listing.getUser().getUsername().equals(username)) {
             throw new RuntimeException("You don't have permission to update this listing");
         }
-        
-        // 2. Cập nhật thông tin cơ bản
+
+        // Cập nhật thông tin cơ bản
         listing.setTitle(dto.getTitle());
         listing.setDescription(dto.getDescription());
         listing.setPrice(dto.getPrice());
-        
-        // 3. Cập nhật category và brand nếu cần
+
+        // Cập nhật category và brand nếu cần
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new RuntimeException("Category not found"));
             listing.setCategory(category);
         }
-        
         if (dto.getBrandId() != null) {
             Brand brand = brandRepository.findById(dto.getBrandId())
                     .orElseThrow(() -> new RuntimeException("Brand not found"));
             listing.setBrand(brand);
         }
-        
-        // 4. Cập nhật thông tin Vehicle hoặc Battery
-        if (dto.getVehicle() != null && listing.getVehicle() != null) {
-            updateVehicle(listing.getVehicle(), dto.getVehicle());
-        } else if (dto.getBattery() != null && listing.getBattery() != null) {
-            updateBattery(listing.getBattery(), dto.getBattery());
-        }
-        
-        // 5. Lưu Listing
-        Listing updatedListing = listingRepository.save(listing);
-        
-        // 6. Cập nhật hình ảnh nếu cần
-        List<ListingImage> images = listing.getListingID() != null && dto.getImageURLs() != null ? 
-                updateListingImages(updatedListing, dto.getImageURLs(), dto.getPrimaryImageIndex()) : 
-                listingImageRepository.findByListingListingID(listingId);
-        
-        // 7. Trả về response
-        return convertToListingResponseDTO(updatedListing, images);
-    }
 
-    /**
-     * Xóa một bài đăng
-     */
-    @Transactional
-    public void deleteListing(Integer id, String username) {
-        Listing listing = listingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Listing not found"));
-                
-        // Kiểm tra quyền
-        if (!listing.getUser().getUsername().equals(username)) {
-            throw new RuntimeException("You don't have permission to delete this listing");
+        // Cập nhật Vehicle hoặc Battery
+        if (dto.getVehicle() != null) {
+            if (listing.getVehicle() != null) {
+                updateVehicle(listing.getVehicle(), dto.getVehicle());
+            } else {
+                Vehicle vehicle = createVehicleFromDTO(dto.getVehicle(), listing.getCategory(), listing.getBrand());
+                listing.setVehicle(vehicle);
+                listing.setBattery(null);
+            }
+        } else if (dto.getBattery() != null) {
+            if (listing.getBattery() != null) {
+                updateBattery(listing.getBattery(), dto.getBattery());
+            } else {
+                Battery battery = createBatteryFromDTO(dto.getBattery(), listing.getCategory(), listing.getBrand());
+                listing.setBattery(battery);
+                listing.setVehicle(null);
+            }
         }
-        
-        // Xóa hình ảnh trước
-        listingImageRepository.deleteByListingListingID(id);
-        
-        // Xóa listing
-        listingRepository.delete(listing);
+
+        // Xử lý hình ảnh mới nếu có
+        List<String> imageUrls;
+        if (images != null && !images.isEmpty()) {
+            imageUrls = cloudinaryService.uploadImages(images);
+        } else if (dto.getImageURLs() != null && !dto.getImageURLs().isEmpty()) {
+            imageUrls = dto.getImageURLs();
+        } else {
+            imageUrls = listingImageRepository.findByListingListingID(listingId)
+                    .stream().map(ListingImage::getImageURL).collect(Collectors.toList());
+        }
+
+        // Xóa hình ảnh cũ và lưu hình ảnh mới
+        updateListingImages(listing, imageUrls, dto.getPrimaryImageIndex());
+
+        // Chạy lại spam filter
+        SpamFilterService.SpamResult spamResult = spamFilterService.check(listing, imageUrls);
+        if (spamResult.flagged) {
+            listing.setStatus("FLAGGED");
+        } else {
+            listing.setStatus("PENDING");
+        }
+
+        Listing updatedListing = listingRepository.save(listing);
+
+        // Nếu flagged, tạo complaint tự động (nếu chưa có complaint cho bài đăng này)
+        if (spamResult.flagged) {
+            if (!complaintRepository.existsByListingListingID(listing.getListingID())) {
+                Complaint c = new Complaint();
+                c.setUser(listing.getUser());
+                c.setListing(updatedListing);
+                c.setContent("Automated spam detection: " + String.join("; ", spamResult.reasons));
+                c.setStatus("Pending");
+                c.setCreatedAt(new java.util.Date());
+                complaintRepository.save(c);
+            }
+        }
+
+        List<ListingImage> imagesList = listingImageRepository.findByListingListingID(listingId);
+        return convertToListingResponseDTO(updatedListing, imagesList);
     }
 
     /**
      * Lấy danh sách bài đăng theo các tiêu chí
      * Mặc định chỉ lấy các bài đăng đã được approve (ACTIVE)
      */
-    public Page<ListingResponseDTO> getListings(String status, Integer userId, 
-                                         Integer categoryId, Integer brandId, 
-                                         Pageable pageable, boolean isModerator) {
+    public Page<ListingResponseDTO> getListings(String status, Integer userId,
+            Integer categoryId, Integer brandId,
+            Pageable pageable, boolean isModerator) {
         Page<Listing> listingsPage;
-        
+
         // Nếu là admin/moderator xem bài đăng cụ thể theo status
         if (status != null && isModerator) {
             listingsPage = listingRepository.findByStatus(status, pageable);
-        } 
+        }
         // Nếu người dùng muốn xem bài đăng của họ
         else if (userId != null) {
             if (isModerator) {
                 // Moderator có thể xem tất cả bài đăng của user
                 listingsPage = listingRepository.findByUserUserID(userId, pageable);
             } else {
-                // User thường chỉ xem được bài đăng ACTIVE của người khác hoặc tất cả bài đăng của chính họ
+                // User thường chỉ xem được bài đăng ACTIVE của người khác hoặc tất cả bài đăng
+                // của chính họ
                 listingsPage = listingRepository.findByUserUserID(userId, pageable);
             }
         }
-        // Lọc theo danh mục 
+        // Lọc theo danh mục
         else if (categoryId != null) {
             if (isModerator && status != null) {
                 listingsPage = listingRepository.findByCategoryCategoryIDAndStatus(categoryId, status, pageable);
@@ -262,7 +317,7 @@ public class ListingService {
                 listingsPage = listingRepository.findByStatus("ACTIVE", pageable);
             }
         }
-        
+
         return listingsPage.map(listing -> {
             List<ListingImage> images = listingImageRepository.findByListingListingID(listing.getListingID());
             return convertToListingResponseDTO(listing, images);
@@ -270,48 +325,52 @@ public class ListingService {
     }
 
     /**
-     * Phê duyệt bài đăng (chỉ Moderator)
+     * Phê duyệt bài đăng (chỉ Moderator hoặc Admin)
      */
     @Transactional
     public ListingResponseDTO approveListing(Integer id) {
         Listing listing = listingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Listing not found with id: " + id));
-                
+
         // Kiểm tra xem bài đăng có phải đang ở trạng thái PENDING không
         if (!"PENDING".equals(listing.getStatus())) {
             throw new RuntimeException("Only pending listings can be approved");
         }
-        
+
         // Cập nhật trạng thái và các ngày
         listing.setStatus("ACTIVE");
         listing.setStartDate(new Date());
-        
-        // Thiết lập ngày hết hạn (ví dụ 30 ngày sau)
+
+        // Lấy số ngày đăng bài miễn phí từ cấu hình hệ thống
+        int freeDays = systemConfigRepository.findByConfigKey("FREE_LISTING_DAYS")
+                .map(config -> Integer.parseInt(config.getConfigValue()))
+                .orElse(14); // Giá trị mặc định là 14 ngày nếu không có cấu hình
+
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date());
-        calendar.add(Calendar.DATE, 30);
+        calendar.add(Calendar.DATE, freeDays);
         listing.setExpiryDate(calendar.getTime());
-        
+
         Listing savedListing = listingRepository.save(listing);
-        
+
         List<ListingImage> images = listingImageRepository.findByListingListingID(id);
-        
+
         return convertToListingResponseDTO(savedListing, images);
     }
 
     /**
-     * Từ chối bài đăng (chỉ Moderator)
+     * Từ chối bài đăng (chỉ Moderator hoặc Admin)
      */
     @Transactional
     public ListingResponseDTO rejectListing(Integer id, String reason) {
         Listing listing = listingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Listing not found with id: " + id));
-                
+
         // Kiểm tra xem bài đăng có phải đang ở trạng thái PENDING không
         if (!"PENDING".equals(listing.getStatus())) {
             throw new RuntimeException("Only pending listings can be rejected");
         }
-        
+
         // Cập nhật trạng thái
         listing.setStatus("REJECTED");
         // Lưu lý do từ chối nếu có
@@ -320,25 +379,96 @@ public class ListingService {
             // Hoặc có thể lưu vào trường khác đã có
             listing.setRejectionReason(reason);
         }
-        
+
         Listing savedListing = listingRepository.save(listing);
-        
+
         List<ListingImage> images = listingImageRepository.findByListingListingID(id);
-        
+
         return convertToListingResponseDTO(savedListing, images);
     }
 
     /**
-     * Lấy danh sách các bài đăng đang chờ phê duyệt (PENDING)
-     * Chỉ dành cho moderator
+     * Tạo thanh toán để gia hạn bài đăng
      */
-    public Page<ListingResponseDTO> getPendingListings(Pageable pageable) {
-        Page<Listing> pendingListingsPage = listingRepository.findByStatus("PENDING", pageable);
+    @Transactional
+    public PaymentResponseDTO createExtendPayment(Integer listingId, int days, String username) {
+        // 1. Lấy thông tin bài đăng và xác thực quyền
+        Listing listing = listingRepository.findById(listingId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng."));
+        if (!listing.getUser().getUsername().equals(username)) {
+            throw new RuntimeException("Bạn không có quyền gia hạn bài đăng này.");
+        }
+
+        // 2. Lấy cấu hình giá từ DB
+        int pricePerDay = Integer.parseInt(systemConfigRepository.findByConfigKey("EXTEND_PRICE_PER_DAY")
+                .orElseThrow(() -> new RuntimeException("Chưa cấu hình giá gia hạn."))
+                .getConfigValue());
+
+        // Bỏ kiểm tra số ngày tối đa, chỉ cần đảm bảo số ngày là số dương
+        if (days <= 0) {
+            throw new RuntimeException("Số ngày gia hạn phải là một số dương.");
+        }
+
+        // 3. Tính tổng tiền
+        BigDecimal totalAmount = new BigDecimal(pricePerDay * days);
+
+        // 4. Tạo Transaction loại SERVICE
+        Transaction transaction = new Transaction();
+        transaction.setType("SERVICE");
+        transaction.setReferenceType("LISTING_EXTEND");
+        transaction.setReferenceID(listingId); // ID của bài đăng cần gia hạn
+        transaction.setTotalAmount(totalAmount);
+        transaction.setStatus("PENDING");
+        transaction.setCreatedAt(new Date());
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        // 5. Tạo Payment
+        Payment payment = new Payment();
+        payment.setTransaction(savedTransaction);
+        payment.setAmount(totalAmount);
+        payment.setMethod("VNPAY");
+        payment.setProvider("VNPAY");
+        payment.setStatus("PENDING");
+        payment.setSellerId(listing.getUser().getUserID()); // Người hưởng lợi là chủ bài đăng
         
-        return pendingListingsPage.map(listing -> {
-            List<ListingImage> images = listingImageRepository.findByListingListingID(listing.getListingID());
-            return convertToListingResponseDTO(listing, images);
-        });
+        // Tạo mã tham chiếu duy nhất cho VNPAY
+        String txnRef = "EXTEND_" + listingId + "_" + System.currentTimeMillis();
+        payment.setTxnRef(txnRef);
+        Payment savedPayment = paymentRepository.save(payment);
+
+        // 6. Tạo URL thanh toán VNPAY
+        String ipAddr = "127.0.0.1"; // Lấy IP thực tế từ request nếu cần
+        String paymentUrl = VnpayUtil.createPaymentUrl(
+                vnpTmnCode, vnpHashSecret, vnpPayUrl, vnpReturnUrl,
+                totalAmount, txnRef, ipAddr);
+
+        // 7. Trả về thông tin thanh toán cho frontend
+        PaymentResponseDTO response = new PaymentResponseDTO();
+        response.setPaymentId(savedPayment.getPaymentID());
+        response.setAmount(savedPayment.getAmount());
+        response.setPaymentUrl(paymentUrl);
+        response.setStatus(savedPayment.getStatus());
+        // ... set các trường khác nếu cần
+        
+        return response;
+    }
+
+    /**
+     * Gia hạn ngày hết hạn cho bài đăng (sẽ được gọi sau khi thanh toán thành công)
+     */
+    @Transactional
+    public void extendListingExpiry(Integer listingId, int days) {
+        Listing listing = listingRepository.findById(listingId)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng để gia hạn."));
+
+        Date currentExpiry = listing.getExpiryDate();
+        Calendar cal = Calendar.getInstance();
+        // Nếu đã hết hạn, gia hạn từ ngày hôm nay. Nếu chưa, gia hạn từ ngày hết hạn cũ.
+        cal.setTime(currentExpiry != null && currentExpiry.after(new Date()) ? currentExpiry : new Date());
+        cal.add(Calendar.DATE, days);
+        listing.setExpiryDate(cal.getTime());
+
+        listingRepository.save(listing);
     }
 
     // Các phương thức helper bên dưới
@@ -352,10 +482,10 @@ public class ListingService {
         vehicle.setYear(dto.getYear());
         vehicle.setPrice(dto.getPrice());
         vehicle.setCondition(dto.getCondition());
-        
+
         return vehicleRepository.save(vehicle);
     }
-    
+
     private Battery createBatteryFromDTO(BatteryDTO dto, Category category, Brand brand) {
         Battery battery = new Battery();
         battery.setCategory(category);
@@ -365,37 +495,47 @@ public class ListingService {
         battery.setCycleCount(dto.getCycleCount());
         battery.setPrice(dto.getPrice());
         battery.setCondition(dto.getCondition());
-        
+
         return batteryRepository.save(battery);
     }
-    
+
     private void updateVehicle(Vehicle vehicle, VehicleDTO dto) {
-        if (dto.getModel() != null) vehicle.setModel(dto.getModel());
-        if (dto.getColor() != null) vehicle.setColor(dto.getColor());
-        if (dto.getYear() != null) vehicle.setYear(dto.getYear());
-        if (dto.getPrice() != null) vehicle.setPrice(dto.getPrice());
-        if (dto.getCondition() != null) vehicle.setCondition(dto.getCondition());
-        
+        if (dto.getModel() != null)
+            vehicle.setModel(dto.getModel());
+        if (dto.getColor() != null)
+            vehicle.setColor(dto.getColor());
+        if (dto.getYear() != null)
+            vehicle.setYear(dto.getYear());
+        if (dto.getPrice() != null)
+            vehicle.setPrice(dto.getPrice());
+        if (dto.getCondition() != null)
+            vehicle.setCondition(dto.getCondition());
+
         vehicleRepository.save(vehicle);
     }
-    
+
     private void updateBattery(Battery battery, BatteryDTO dto) {
-        if (dto.getCapacity() != null) battery.setCapacity(dto.getCapacity());
-        if (dto.getVoltage() != null) battery.setVoltage(dto.getVoltage());
-        if (dto.getCycleCount() != null) battery.setCycleCount(dto.getCycleCount());
-        if (dto.getPrice() != null) battery.setPrice(dto.getPrice());
-        if (dto.getCondition() != null) battery.setCondition(dto.getCondition());
-        
+        if (dto.getCapacity() != null)
+            battery.setCapacity(dto.getCapacity());
+        if (dto.getVoltage() != null)
+            battery.setVoltage(dto.getVoltage());
+        if (dto.getCycleCount() != null)
+            battery.setCycleCount(dto.getCycleCount());
+        if (dto.getPrice() != null)
+            battery.setPrice(dto.getPrice());
+        if (dto.getCondition() != null)
+            battery.setCondition(dto.getCondition());
+
         batteryRepository.save(battery);
     }
-    
+
     private List<ListingImage> saveListingImages(Listing listing, List<String> imageURLs, Integer primaryIndex) {
         if (imageURLs == null || imageURLs.isEmpty()) {
             return new ArrayList<>();
         }
-        
+
         List<ListingImage> images = new ArrayList<>();
-        
+
         for (int i = 0; i < imageURLs.size(); i++) {
             ListingImage image = new ListingImage();
             image.setListing(listing);
@@ -403,18 +543,18 @@ public class ListingService {
             image.setIsPrimary(primaryIndex != null && primaryIndex == i);
             images.add(listingImageRepository.save(image));
         }
-        
+
         return images;
     }
-    
+
     private List<ListingImage> updateListingImages(Listing listing, List<String> imageURLs, Integer primaryIndex) {
         // Xóa hình ảnh cũ
         listingImageRepository.deleteByListingListingID(listing.getListingID());
-        
+
         // Thêm hình ảnh mới
         return saveListingImages(listing, imageURLs, primaryIndex);
     }
-    
+
     private ListingResponseDTO convertToListingResponseDTO(Listing listing, List<ListingImage> images) {
         return listingMapper.toDto(listing, images);
     }

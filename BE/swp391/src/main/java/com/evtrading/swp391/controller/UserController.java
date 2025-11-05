@@ -2,6 +2,9 @@ package com.evtrading.swp391.controller;
 
 import com.evtrading.swp391.entity.User;
 import com.evtrading.swp391.service.UserService;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,10 +21,13 @@ public class UserController {
     private UserService userService;
 
     // Lấy danh sách tất cả user
-    @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping
     public List<User> getAllUsers() {
-        return userService.getAllUsers();
+        return userService.getAllUsers()
+        .stream()
+        .filter(u -> u.getRole() != null && !"Admin".equalsIgnoreCase(u.getRole().getRoleName()))
+        .toList();
     }
 
     // Lấy thông tin user theo id
@@ -64,53 +70,18 @@ public class UserController {
     @PostMapping("/{id}/disable")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<User> disableUser(@PathVariable Integer id) {
-        Optional<User> opt = userService.getUserById(id);
-        if (opt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        User user = opt.get();
-        Role role = user.getRole();
-        String roleName = role != null ? role.getRoleName() : null;
-        if (roleName == null) {
-            return ResponseEntity.status(403).build();
-            //role null trả về 403 Forbidden
-        }
-        // Only allow disabling users with role Member or Moderator
-        if (!roleName.equalsIgnoreCase("Member") && !roleName.equalsIgnoreCase("Moderator")) {
-            return ResponseEntity.status(403).build();
-            //role khác Member và Moderator trả về 403 Forbidden
-        }
-        user.setStatus("Disabled");
-        User saved = userService.createUser(user);
-        return ResponseEntity.ok(saved);
+        User result = userService.disableUser(id);
+        if (result == null) return ResponseEntity.status(403).build();
+        return ResponseEntity.ok(result);
     }
 
-    // Approve user by id (only if user is Pending and role is Member) 
-    @PostMapping("/{id}/approve")
+    // Enable user by id (only if user is Pending and role is Member) 
+    @PostMapping("/{id}/enable")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> approveUser(@PathVariable Integer id) {
-        Optional<User> opt = userService.getUserById(id);
-        if (opt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        User user = opt.get();
-        if (!"Pending".equalsIgnoreCase(user.getStatus())) {
-            // Can't approve a user that's not pending
-            return ResponseEntity.badRequest().build();
-        }
-        Role role = user.getRole();
-        String roleName = role != null ? role.getRoleName() : null;
-        if (roleName == null) {
-            return ResponseEntity.status(403).build();
-            //role null trả về 403 Forbidden
-        }
-        if (!roleName.equalsIgnoreCase("Member") ) {
-            return ResponseEntity.status(403).build();
-            //role khác Member trả về 403 Forbidden
-        }
-        user.setStatus("Active");
-        User saved = userService.createUser(user);
-        return ResponseEntity.ok(saved);
+    public ResponseEntity<User> enableUser(@PathVariable Integer id) {
+        User result = userService.enableUser(id);
+        if (result == null) return ResponseEntity.status(403).build();
+        return ResponseEntity.ok(result);
     }
 
 }

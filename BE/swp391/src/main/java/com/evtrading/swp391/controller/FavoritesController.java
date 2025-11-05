@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Map; // Thêm import này
 
 @RestController
 @RequestMapping("/api/favorites")
@@ -98,6 +99,24 @@ public class FavoritesController {
         } catch (Exception ex) {
             ex.printStackTrace();
             return ResponseEntity.status(500).build();
+        }
+    }
+
+    /**
+     * Kiểm tra xem người dùng hiện tại có đang theo dõi một bài đăng cụ thể không.
+     */
+    @GetMapping("/listings/{listingId}/status")
+    public ResponseEntity<?> getFavoriteStatus(@PathVariable Integer listingId, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body("{\"error\":\"Unauthorized\"}");
+        }
+        try {
+            String username = principal.getName();
+            boolean isFavorited = favoritesService.isFavorited(username, listingId);
+            return ResponseEntity.ok(Map.of("following", isFavorited));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(500).body("{\"error\":\"Internal server error\"}");
         }
     }
 }
