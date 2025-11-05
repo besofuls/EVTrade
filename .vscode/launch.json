@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-Swp391Application<swp391>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.evtrading.swp391.Swp391Application",
+            "projectName": "swp391",
+            "console": "integratedTerminal",
+            "args": "--security.oauth2.google.client-id=668404152143-6oofthiqpc6bi493q4rmd5l2ggqob609.apps.googleusercontent.com --security.oauth2.facebook.app-id=785985914430887 --security.oauth2.facebook.app-secret=b3e4382752b3cca34a9e7be4aa3ccf6d --debug",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+  "SECURITY_OAUTH2_GOOGLE_CLIENT_ID": "668404152143-6oofthiqpc6bi493q4rmd5l2ggqob609.apps.googleusercontent.com",
+  "SECURITY_OAUTH2_FACEBOOK_APP_ID": "785985914430887",
+  "SECURITY_OAUTH2_FACEBOOK_APP_SECRET": "b3e4382752b3cca34a9e7be4aa3ccf6d"
+}
+        }
+    ]
+}
