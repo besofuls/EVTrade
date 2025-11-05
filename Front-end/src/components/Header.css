@@ -1,0 +1,301 @@
+/* Header */
+.home-header {
+  background: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 12px 0;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.site-logo {
+  font-size: 24px;
+  font-weight: 900;
+  color: #FFD700;
+  margin: 0;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  font-family: 'Arial Black', 'Helvetica Neue', sans-serif;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.site-logo:hover {
+  opacity: 0.8;
+}
+
+.main-nav {
+  display: flex;
+  gap: 25px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.nav-link {
+  color: #333;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 16px;
+  transition: color 0.3s ease;
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: #007bff;
+}
+
+/* Search Bar */
+.search-form {
+  flex: 0 0 auto;
+  max-width: 350px;
+  width: 100%;
+  margin-left: auto;
+}
+
+.search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 15px;
+  width: 18px;
+  height: 18px;
+  color: #666;
+  stroke: #666;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 11px 15px 11px 45px;
+  border: 1px solid #e0e0e0;
+  border-radius: 25px;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.3s ease;
+  background: white;
+  color: #000;
+}
+
+.search-input:focus {
+  border-color: #007bff;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.08);
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+/* Auth Buttons */
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.btn-login {
+  background: transparent;
+  border: 1px solid #FFD700;
+  color: #FFD700;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-login:hover {
+  background: #FFD700;
+  color: #333;
+}
+
+.btn-register {
+  background: #FFD700;
+  border: 1px solid #FFD700;
+  color: #333;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-register:hover {
+  background: #FFC700;
+  border-color: #FFC700;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .header-content {
+    gap: 15px;
+  }
+
+  .site-logo {
+    font-size: 18px;
+  }
+
+  .main-nav {
+    gap: 15px;
+  }
+
+  .nav-link {
+    font-size: 14px;
+  }
+
+  .search-form {
+    max-width: 250px;
+  }
+}
+
+@media (max-width: 992px) {
+  .header-content {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .site-logo {
+    order: 1;
+    font-size: 16px;
+  }
+
+  .auth-buttons {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .main-nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    gap: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+  }
+
+  .search-form {
+    order: 4;
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+/* User Menu */
+.user-menu-container {
+  position: relative;
+}
+
+.user-avatar-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #FFD700;
+  background: white;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.user-avatar-btn:hover {
+  border-color: #FFC700;
+  transform: scale(1.05);
+}
+
+.user-avatar-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  min-width: 200px;
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.dropdown-item {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  color: #333;
+  font-size: 14px;
+}
+
+.dropdown-item:hover {
+  background: #f5f5f5;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 5px 0;
+}
+
+.btn-demo-toggle {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  color: #666;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-demo-toggle:hover {
+  background: #e0e0e0;
+}
+
+@media (max-width: 576px) {
+  .nav-link {
+    font-size: 13px;
+  }
+
+  .btn-login,
+  .btn-register {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+
+  .search-input {
+    padding: 8px 40px 8px 14px;
+    font-size: 13px;
+  }
+
+  .search-button {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .user-dropdown {
+    right: -10px;
+  }
+}
