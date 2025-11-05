@@ -5,6 +5,7 @@ import com.evtrading.swp391.service.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -19,6 +20,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+
 
 /**
  * Cấu hình chính của Spring Security cho ứng dụng
@@ -99,36 +103,34 @@ public class SecurityConfig {
     }
 
     /**
-     * Cấu hình bảo mật chính cho ứng dụng
-     * Định nghĩa các quy tắc truy cập endpoints, filter chain, xác thực...
+     * Cấu hình bảo mật chính cho toàn bộ ứng dụng.
+     * Gộp các quy tắc public và protected vào một nơi duy nhất.
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        
-        // Cấu hình session management
-        http.sessionManagement(session -> 
-            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-
-        // Vô hiệu hóa CSRF và cấu hình CORS
-        http.csrf(AbstractHttpConfigurer::disable);
-        http.cors(Customizer.withDefaults());
-        
-        
-        // Cấu hình authorization
-        http.authorizeHttpRequests(auth -> 
-            auth
-                // Cho phép truy cập không cần xác thực
+        http
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(Customizer.withDefaults())
+            .authorizeHttpRequests(auth -> auth
+                // --- QUY TẮC PUBLIC ---
+                .requestMatchers(SecurityPaths.authEndpoints()).permitAll()
                 .requestMatchers(SecurityPaths.publicEndpoints()).permitAll()
-                // Các endpoint khác yêu cầu xác thực
+                // Cho phép GET chi tiết bài đăng mà không cần đăng nhập
+                .requestMatchers(HttpMethod.GET, "/api/listings/{id}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/sellers/**").permitAll()
+
+                // --- QUY TẮC PROTECTED (YÊU CẦU ĐĂNG NHẬP) ---
+                .requestMatchers(SecurityPaths.memberEndpoints()).hasAnyRole("MEMBER", "MODERATOR", "ADMIN")
+                .requestMatchers(SecurityPaths.moderatorEndpoints()).hasAnyRole("MODERATOR", "ADMIN")
+                .requestMatchers(SecurityPaths.adminEndpoints()).hasRole("ADMIN")
+                
+                // Bất kỳ request nào khác đều cần xác thực
                 .anyRequest().authenticated()
-        );
-        
-        // Đảm bảo JWT filter chỉ được áp dụng sau khi đã xác thực
-        http.authenticationProvider(authenticationProvider());
-        http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
-        
-        
-        
+            )
+            .authenticationProvider(authenticationProvider())
+            .addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 }

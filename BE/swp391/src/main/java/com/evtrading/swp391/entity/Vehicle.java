@@ -19,10 +19,13 @@ public class Vehicle {
     @JoinColumn(name = "brandID", nullable = false)
     private Brand brand;
 
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String model;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String color;
     private Integer year;
     private BigDecimal price;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String condition;
 
     // Getters and Setters

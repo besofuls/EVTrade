@@ -31,3 +31,16 @@ public class Favorites {
     public Date getCreatedAt() { return createdAt; }
     public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
 }
+
+/*
+        Notes on Favorites mapping:
+        - This entity uses a composite primary key implemented via @EmbeddedId -> FavoritesId.
+        - The @MapsId("userID") and @MapsId("listingID") mappings tell Hibernate to use the
+            values from the associated User and Listing entities to populate the embedded id.
+            Therefore before persisting a Favorites entity you must set both
+            - favorites.setId(...) and
+            - favorites.setUser(userEntity) and favorites.setListing(listingEntity)
+            or at minimum set the relations so that Hibernate can populate the foreign keys.
+        - This pattern avoids a separate surrogate key and keeps the natural composite
+            (userID, listingID) as the primary key.
+*/

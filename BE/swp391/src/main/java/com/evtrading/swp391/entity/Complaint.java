@@ -40,4 +40,16 @@ public class Complaint {
     public Date getResolvedAt() { return resolvedAt; }
     public void setResolvedAt(Date resolvedAt) { this.resolvedAt = resolvedAt;}
     
+    /*
+     * Ghi chú luồng Complaint:
+     * - Khi người mua gặp vấn đề, frontend POST lên /api/complaints với userId, listingId, content.
+     * - Backend sẽ tạo record mới với status = "Pending" và createdAt là thời điểm hiện tại.
+     * - Admin/Moderator sẽ gọi GET /api/complaints?status=Pending để lấy danh sách khiếu nại chờ xử lý.
+     * - Khi admin xử lý xong, gọi PUT /api/complaints/{id}/resolve với body chứa { "status": "Resolved" }
+     *   Backend sẽ cập nhật status và resolvedAt.
+     *
+     * Lưu ý mapping:
+     * - Quan hệ ManyToOne tới User và Listing: trường user/listing bắt buộc (nullable = false)
+     * - Trường content dùng NVARCHAR(MAX) để lưu nội dung tiếng Việt.
+     */
 }

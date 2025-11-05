@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import apiService from '../services/apiService'
 import './Header.css'
 
 function Header() {
@@ -11,11 +12,27 @@ function Header() {
   useEffect(() => {
     const checkUser = () => {
       const storedUser = localStorage.getItem('user')
+      const token = apiService.getAuthToken()
+      // Chỉ bắt đăng nhập ở các trang cần bảo mật
+      const protectedPaths = [
+        '/user-profile',
+        '/my-orders',
+        '/orders-payment',
+        '/sell'
+      ]
+      if (!token || apiService.isTokenExpired()) {
+        apiService.clearAuthToken();
+        setUser(null);
+        if (protectedPaths.includes(window.location.pathname)) {
+          navigate("/login", { replace: true });
+        }
+        return;
+      }
       if (storedUser) {
         try {
           setUser(JSON.parse(storedUser))
         } catch (error) {
-          console.error('Error parsing user data:', error)
+          setUser(null)
         }
       } else {
         setUser(null)
@@ -41,21 +58,29 @@ function Header() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm('Bạn có chắc muốn đăng xuất?')) {
-      // Xóa toàn bộ data của user
-      localStorage.clear() // Xóa tất cả localStorage
-      // Hoặc xóa từng item cụ thể:
-      // localStorage.removeItem('user')
-      // localStorage.removeItem('isLoggedIn')
-      // localStorage.removeItem('userID')
-      // localStorage.removeItem('avatar')
-      // localStorage.removeItem('token')
-      
-      setUser(null)
-      setShowUserMenu(false)
-      alert('Đăng xuất thành công!')
-      navigate('/')
+      try {
+        // Gọi API logout
+        await apiService.logout()
+        
+        // Cập nhật UI
+        setUser(null)
+        setShowUserMenu(false)
+        
+        // Trigger storage event để các component khác cập nhật
+        window.dispatchEvent(new Event('storage'))
+        
+        alert('Đăng xuất thành công!')
+        navigate('/')
+      } catch (error) {
+        console.error('Logout error:', error)
+        // Vẫn clear UI và redirect dù API lỗi
+        setUser(null)
+        setShowUserMenu(false)
+        alert('Đã đăng xuất!')
+        navigate('/')
+      }
     }
   }
 
@@ -69,7 +94,7 @@ function Header() {
           {/* Menu Navigation */}
           <nav className="main-nav">
             <a onClick={() => navigate('/buy')} className="nav-link">Mua sản phẩm</a>
-            <a onClick={() => navigate('/sell')} className="nav-link">Bán sản phẩm</a>
+            <a onClick={() => navigate('/sell')} className="nav-link">Tạo bài đăng</a>
             <a href="#" className="nav-link">Liên hệ</a>
             <a onClick={() => navigate('/about')} className="nav-link">Về chúng tôi</a>
           </nav>
@@ -112,7 +137,7 @@ function Header() {
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                   </svg>
-                  Hello, {user.username}
+                  Hello, {user.username || user.userName || user.name || 'User'}
                 </button>
                 
                 {showUserMenu && (
@@ -123,6 +148,15 @@ function Header() {
                     <div className="dropdown-item" onClick={() => { navigate('/my-orders'); setShowUserMenu(false); }}>
                       <span>📦</span> Đơn Đã Mua
                     </div>
+                    <div className="dropdown-item" onClick={() => { navigate('/orders-payment'); setShowUserMenu(false); }}>
+                      <span>💳</span> Thanh toán đơn hàng
+                    </div>
+                    {/* Thêm nút chuyển qua admin nếu là admin hoặc moderator */}
+                    {(user?.roles?.includes("ADMIN") || user?.roles?.includes("MODERATOR")) && (
+                      <div className="dropdown-item" onClick={() => { navigate('/admin'); setShowUserMenu(false); }}>
+                        <span>🛠️</span> Admin Dashboard
+                      </div>
+                    )}
                     <div className="dropdown-divider"></div>
                     <div className="dropdown-item" onClick={handleLogout}>
                       <span>🚪</span> Đăng Xuất

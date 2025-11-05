@@ -7,6 +7,7 @@ import com.evtrading.swp391.repository.ProfileRepository;
 import com.evtrading.swp391.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.Date;
 import java.util.Optional;
 
 @Service
@@ -25,24 +26,34 @@ public class ProfileService {
     public Profile updateProfile(Integer userId, ProfileDTO profileDTO) {
         Optional<User> userOptional = userRepository.findById(userId);
         if (userOptional.isEmpty()) {
-            return null; // Or throw an exception
+            return null;
         }
         User user = userOptional.get();
 
-        Profile profile = profileRepository.findByUser_UserID(userId).orElse(new Profile());
+        Profile profile = profileRepository.findByUser_UserID(userId).orElseGet(() -> {
+            Profile p = new Profile();
+            p.setCreatedAt(new Date());
+            return p;
+        });
         profile.setUser(user);
 
-        // Partial update: only set fields provided (non-null & not blank)
         if (profileDTO.getFullName() != null && !profileDTO.getFullName().isBlank()) {
-            profile.setFullName(profileDTO.getFullName());
+            profile.setFullName(profileDTO.getFullName().trim());
         }
         if (profileDTO.getPhone() != null && !profileDTO.getPhone().isBlank()) {
-            profile.setPhone(profileDTO.getPhone());
+            profile.setPhone(profileDTO.getPhone().trim());
         }
         if (profileDTO.getAddress() != null && !profileDTO.getAddress().isBlank()) {
-            profile.setAddress(profileDTO.getAddress());
+            profile.setAddress(profileDTO.getAddress().trim());
+        }
+        if (profileDTO.getDateOfBirth() != null) {
+            profile.setDateOfBirth(profileDTO.getDateOfBirth());
+        }
+        if (profileDTO.getGender() != null && !profileDTO.getGender().isBlank()) {
+            profile.setGender(profileDTO.getGender().trim());
         }
 
+        profile.setUpdatedAt(new Date());
         return profileRepository.save(profile);
     }
 }

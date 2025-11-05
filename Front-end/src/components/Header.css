@@ -51,7 +51,8 @@
 }
 
 .nav-link:hover {
-  color: #007bff;
+  color: #007bff !important;
+  cursor: pointer;
 }
 
 /* Search Bar */
@@ -260,35 +261,59 @@
 
 .user-dropdown {
   position: absolute;
-  top: 50px;
+  top: 55px;
   right: 0;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-  min-width: 200px;
-  overflow: hidden;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+  min-width: 230px;
+  padding: 12px 0;
   z-index: 1000;
+  overflow: hidden;
+  animation: fadeInScale 0.18s ease;
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .dropdown-item {
   padding: 12px 20px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
-  transition: background 0.2s ease;
-  color: #333;
-  font-size: 14px;
+  color: #1f2937;
+  font-size: 15px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.dropdown-item span {
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: #f3f4f6;
+  border-radius: 8px;
 }
 
 .dropdown-item:hover {
-  background: #f5f5f5;
+  background: #f9fafb;
+  color: #1d4ed8;
+}
+
+.dropdown-item:hover span {
+  background: #e0e7ff;
+  color: #1d4ed8;
 }
 
 .dropdown-divider {
   height: 1px;
-  background: #e0e0e0;
-  margin: 5px 0;
+  background: #e5e7eb;
+  margin: 8px 0;
 }
 
 .btn-demo-toggle {
@@ -326,6 +351,7 @@
   }
   
   .user-dropdown {
-    right: -10px;
+    right: -12px;
+    min-width: 210px;
   }
 }
