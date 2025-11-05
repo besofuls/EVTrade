@@ -401,7 +401,7 @@ const apiService = {
 
   ///////////////////////////////////////////////////////////////////////////////
 
-  // API ĐẶT ĐƠN HÀNG
+  // API VỀ ĐƠN HÀNG
   // Tạo đơn hàng mới
   createOrder: async function (orderObj) {
     const token = this.getAuthToken();
@@ -417,6 +417,20 @@ const apiService = {
     if (!res.ok) throw new Error("Không thể tạo đơn hàng");
     return await res.json();
   },
+
+  // Lấy danh sách đơn hàng của user hiện tại
+  getMyOrders: async function () {
+    const token = this.getAuthToken();
+    const res = await fetch(`${API_BASE_URL}/orders`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
+    if (!res.ok) throw new Error("Không thể tải danh sách đơn hàng");
+    return await res.json();
+  },
+
   //////////////////////////////////////////////////////////////////////////////////
 
   // API GIAO DỊCH VÀ THANH TOÁN

@@ -1,0 +1,123 @@
+.my-orders-container {
+    background-color: #f4f6f8;
+    min-height: calc(100vh - 60px); /* Chiều cao trừ đi header */
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.my-orders-content {
+    width: 100%;
+    max-width: 1200px;
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.my-orders-content h2 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    color: #333;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 0.5rem;
+}
+
+.loading-text, .error-text, .no-orders-text {
+    text-align: center;
+    font-size: 1.1rem;
+    padding: 2rem;
+    color: #666;
+}
+
+.error-text {
+    color: #d9534f;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.orders-table th,
+.orders-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.orders-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+.orders-table tbody tr {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.orders-table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    text-transform: capitalize;
+}
+
+.status-badge.status-pending { background-color: #f0ad4e; }
+.status-badge.status-completed { background-color: #5cb85c; }
+.status-badge.status-cancelled { background-color: #d9534f; }
+.status-badge.status-processing { background-color: #337ab7; }
+.status-badge.status-shipped { background-color: #5bc0de; }
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+    .my-orders-content {
+        padding: 1rem;
+    }
+
+    .orders-table thead {
+        display: none; /* Ẩn header của bảng */
+    }
+
+    .orders-table, .orders-table tbody, .orders-table tr, .orders-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .orders-table tr {
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 10px;
+    }
+
+    .orders-table td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+        border-bottom: none;
+    }
+
+    .orders-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: calc(50% - 20px);
+        padding-right: 10px;
+        font-weight: 600;
+        text-align: left;
+    }
+}
