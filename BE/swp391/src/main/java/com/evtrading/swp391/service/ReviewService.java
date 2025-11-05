@@ -2,12 +2,14 @@ package com.evtrading.swp391.service;
 
 import com.evtrading.swp391.entity.Listing;
 import com.evtrading.swp391.entity.Order;
+import com.evtrading.swp391.entity.Profile;
 import com.evtrading.swp391.entity.Review;
 import com.evtrading.swp391.entity.User;
 import com.evtrading.swp391.repository.ListingRepository;
 import com.evtrading.swp391.repository.OrderRepository;
 import com.evtrading.swp391.repository.ReviewRepository;
 import com.evtrading.swp391.repository.UserRepository;
+import com.evtrading.swp391.repository.ProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +24,18 @@ public class ReviewService {
     private final UserRepository userRepository;
     private final ListingRepository listingRepository;
     private final OrderRepository orderRepository;
+    private final ProfileRepository profileRepository;
 
-    public ReviewService(ReviewRepository reviewRepository, UserRepository userRepository, ListingRepository listingRepository, OrderRepository orderRepository) {
+    public ReviewService(ReviewRepository reviewRepository,
+                         UserRepository userRepository,
+                         ListingRepository listingRepository,
+                         OrderRepository orderRepository,
+                         ProfileRepository profileRepository) {
         this.reviewRepository = reviewRepository;
         this.userRepository = userRepository;
         this.listingRepository = listingRepository;
         this.orderRepository = orderRepository;
+        this.profileRepository = profileRepository;
     }
 
     /**
@@ -40,10 +48,11 @@ public class ReviewService {
         Optional<Listing> l = listingRepository.findById(listingId);
         if (u.isEmpty() || l.isEmpty()) return Optional.empty();
 
-    // Kiểm tra user có mua listing này không: tìm Order với buyer, listing và status = Completed
-    List<Order> orders = orderRepository.findByBuyerAndListingAndStatus(u.get(), l.get(), "Completed");
-    boolean bought = orders != null && !orders.isEmpty();
-    if (!bought) return Optional.empty();
+        // Kiểm tra user có mua listing này không: tìm Order với buyer, listing và status = Completed
+        List<Order> orders = orderRepository.findByBuyerAndListing(u.get(), l.get());
+        boolean bought = orders != null && orders.stream()
+                .anyMatch(o -> o.getStatus() != null && o.getStatus().equalsIgnoreCase("COMPLETED"));
+        if (!bought) return Optional.empty();
 
         Review r = new Review();
         r.setUser(u.get());
@@ -76,13 +85,31 @@ public class ReviewService {
      * - Tính tổng số review và điểm trung bình tổng quát cho seller
      */
     public com.evtrading.swp391.dto.SellerFeedbackDTO getSellerFeedback(Integer sellerId) {
+        Optional<User> userOpt = userRepository.findById(sellerId);
+        if (userOpt.isEmpty()) {
+            return null;
+        }
+
+        User seller = userOpt.get();
+        Profile profile = profileRepository.findByUser_UserID(sellerId).orElse(null);
+
         com.evtrading.swp391.dto.SellerFeedbackDTO result = new com.evtrading.swp391.dto.SellerFeedbackDTO();
         result.setSellerId(sellerId);
+        result.setSellerUsername(seller.getUsername());
+        result.setSellerName(profile != null && profile.getFullName() != null && !profile.getFullName().isBlank()
+                ? profile.getFullName()
+                : seller.getUsername());
+        result.setEmail(seller.getEmail());
+        result.setPhone(profile != null ? profile.getPhone() : null);
+        result.setAddress(profile != null ? profile.getAddress() : null);
+        result.setMemberSince(seller.getCreatedAt());
 
         // Lấy tất cả listing của seller (không phân trang vì dùng cho dashboard)
-        java.util.List<com.evtrading.swp391.entity.Listing> listings = listingRepository.findAll().stream()
-                .filter(l -> l.getUser() != null && l.getUser().getUserID().equals(sellerId))
-                .collect(Collectors.toList());
+        java.util.List<com.evtrading.swp391.entity.Listing> listings = listingRepository.findAllByUserUserID(sellerId);
+        if (listings == null) {
+            listings = java.util.List.of();
+        }
+        result.setTotalListings(listings.size());
 
         java.util.List<com.evtrading.swp391.dto.SellerFeedbackDTO.ListingFeedback> listingFeedbacks = new java.util.ArrayList<>();
         long totalReviews = 0L;
@@ -92,10 +119,35 @@ public class ReviewService {
             java.util.List<Review> reviews = reviewRepository.findByListing(li);
             long count = reviews.size();
             double avg = 0.0;
-            java.util.List<String> comments = new java.util.ArrayList<>();
+            java.util.List<com.evtrading.swp391.dto.SellerFeedbackDTO.CommentFeedback> comments = new java.util.ArrayList<>();
             if (count > 0) {
                 avg = reviews.stream().collect(Collectors.summarizingDouble(Review::getRating)).getAverage();
-                reviews.forEach(r -> { if (r.getComment() != null) comments.add(r.getComment()); });
+                reviews.forEach(r -> {
+                    com.evtrading.swp391.dto.SellerFeedbackDTO.CommentFeedback c = new com.evtrading.swp391.dto.SellerFeedbackDTO.CommentFeedback();
+                    c.setReviewId(r.getReviewID());
+                    if (r.getUser() != null) {
+                        c.setBuyerId(r.getUser().getUserID());
+                        String buyerName = r.getUser().getUsername();
+                        if (buyerName == null || buyerName.isBlank()) {
+                            buyerName = r.getUser().getEmail();
+                        }
+                        c.setBuyerName(buyerName != null ? buyerName : "Ẩn danh");
+                    }
+                    if (r.getRating() != null) {
+                        c.setRating(r.getRating());
+                    }
+                    c.setComment(r.getComment());
+                    c.setCreatedAt(r.getCreatedAt());
+                    comments.add(c);
+                });
+                comments.sort((c1, c2) -> {
+                    Date d1 = c1.getCreatedAt();
+                    Date d2 = c2.getCreatedAt();
+                    if (d1 == null && d2 == null) return 0;
+                    if (d1 == null) return 1;
+                    if (d2 == null) return -1;
+                    return d2.compareTo(d1);
+                });
             }
             com.evtrading.swp391.dto.SellerFeedbackDTO.ListingFeedback lf = new com.evtrading.swp391.dto.SellerFeedbackDTO.ListingFeedback();
             lf.setListingId(li.getListingID());

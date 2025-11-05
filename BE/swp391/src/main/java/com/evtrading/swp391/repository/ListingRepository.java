@@ -12,6 +12,7 @@ import com.evtrading.swp391.entity.Listing;
 public interface ListingRepository extends JpaRepository<Listing, Integer>, JpaSpecificationExecutor<Listing> {
     Page<Listing> findByStatus(String status, Pageable pageable);
     Page<Listing> findByUserUserID(Integer userId, Pageable pageable);
+    java.util.List<Listing> findAllByUserUserID(Integer userId);
     Page<Listing> findByCategoryCategoryID(Integer categoryId, Pageable pageable);
     Page<Listing> findByBrandBrandID(Integer brandId, Pageable pageable);
     Page<Listing> findByCategoryCategoryIDAndStatus(Integer categoryId, String status, Pageable pageable);

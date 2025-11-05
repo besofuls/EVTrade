@@ -117,7 +117,8 @@ public class SecurityConfig {
                 .requestMatchers(SecurityPaths.authEndpoints()).permitAll()
                 .requestMatchers(SecurityPaths.publicEndpoints()).permitAll()
                 // Cho phép GET chi tiết bài đăng mà không cần đăng nhập
-                .requestMatchers(HttpMethod.GET, "/api/listings/{id}").permitAll() 
+                .requestMatchers(HttpMethod.GET, "/api/listings/{id}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/sellers/**").permitAll()
 
                 // --- QUY TẮC PROTECTED (YÊU CẦU ĐĂNG NHẬP) ---
                 .requestMatchers(SecurityPaths.memberEndpoints()).hasAnyRole("MEMBER", "MODERATOR", "ADMIN")

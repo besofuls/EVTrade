@@ -32,6 +32,19 @@ const apiService = {
   get_reviews_for_listing: (listingId) =>
     `${API_BASE_URL}/reviews/listing/${listingId}`,
 
+  // Seller feedback
+  getSellerFeedback: async function (sellerId) {
+    const res = await fetch(`${API_BASE_URL}/sellers/${sellerId}/feedback`, {
+      headers: { Accept: "*/*" },
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || "Không thể tải thông tin người bán");
+    }
+    return await res.json();
+  },
+
   //favorite controller
   /**
    * Thêm một bài đăng vào danh sách yêu thích (POST).

@@ -30,6 +30,11 @@ function ProductDetail() {
   // State mới cho zoom ảnh
   const [isZoomed, setIsZoomed] = useState(false);
 
+  // Seller feedback state
+  const [sellerFeedback, setSellerFeedback] = useState(null);
+  const [sellerFeedbackLoading, setSellerFeedbackLoading] = useState(false);
+  const [sellerFeedbackError, setSellerFeedbackError] = useState("");
+
   // Feedback states
   const [topMessage, setTopMessage] = useState({ text: "", type: "" });
   const [commentFeedback, setCommentFeedback] = useState({ text: "", type: "" });
@@ -85,6 +90,34 @@ function ProductDetail() {
     setLoading(true);
     Promise.all([fetchDetail(), fetchComments(), fetchFollowing()]);
   }, [id]);
+
+  useEffect(() => {
+    const sellerId = item?.seller?.id;
+    if (!sellerId) return;
+
+    let active = true;
+    setSellerFeedbackLoading(true);
+    setSellerFeedbackError("");
+
+    apiService
+      .getSellerFeedback(sellerId)
+      .then((data) => {
+        if (!active) return;
+        setSellerFeedback(data);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setSellerFeedback(null);
+        setSellerFeedbackError(err.message || "Không thể tải đánh giá người bán.");
+      })
+      .finally(() => {
+        if (active) setSellerFeedbackLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [item?.seller?.id]);
 
   const fmtPrice = (v) => v == null ? "—" : new Intl.NumberFormat("vi-VN").format(Number(v)) + " đ";
   const fmtDate = (s) => s ? new Date(s).toLocaleDateString("vi-VN") : "—";
@@ -165,6 +198,12 @@ function ProductDetail() {
     }
   };
 
+  const handleSellerProfileNav = () => {
+    if (item?.seller?.id) {
+      navigate(`/seller/${item.seller.id}`);
+    }
+  };
+
   if (loading) return <div className="pd-loading">Đang tải...</div>;
   if (error) return <div className="pd-error">{error}</div>;
   if (!item) return <div className="pd-empty">Không tìm thấy sản phẩm.</div>;
@@ -231,11 +270,43 @@ function ProductDetail() {
 
             <div className="pd-price">{fmtPrice(item.price)}</div>
 
-            <div className="pd-seller-card">
+            <div
+              className={`pd-seller-card ${seller?.id ? "interactive" : ""}`}
+              role={seller?.id ? "button" : undefined}
+              tabIndex={seller?.id ? 0 : -1}
+              onClick={handleSellerProfileNav}
+              onKeyDown={(e) => {
+                if (!seller?.id) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleSellerProfileNav();
+                }
+              }}
+            >
               <div className="pd-seller-avatar">👤</div>
               <div className="pd-seller-info">
                 <div className="pd-seller-name">{seller.username || "—"}</div>
-                <div className="pd-seller-meta">Đăng ngày: {fmtDate(item.createdAt)}</div>
+                <div className="pd-seller-meta">
+                  <span>Đăng ngày: {fmtDate(item.createdAt)}</span>
+                </div>
+                <div className="pd-seller-rating">
+                  {sellerFeedbackLoading && <span>Đang tải đánh giá...</span>}
+                  {!sellerFeedbackLoading && sellerFeedbackError && (
+                    <span className="pd-seller-rating-error">Không tải được đánh giá</span>
+                  )}
+                  {!sellerFeedbackLoading && !sellerFeedbackError && sellerFeedback && (sellerFeedback.totalReviews || 0) > 0 && (
+                    <span>
+                      {Number(sellerFeedback.averageRating || 0).toFixed(1)} ⭐
+                      <span className="pd-seller-rating-count"> ({sellerFeedback.totalReviews} đánh giá)</span>
+                    </span>
+                  )}
+                  {!sellerFeedbackLoading && !sellerFeedbackError && (!sellerFeedback || (sellerFeedback.totalReviews || 0) === 0) && (
+                    <span className="pd-seller-rating-empty">Chưa có đánh giá</span>
+                  )}
+                </div>
+                {seller?.id && (
+                  <div className="pd-seller-link">Xem hồ sơ người bán →</div>
+                )}
               </div>
             </div>
 
