@@ -8,6 +8,16 @@ public class FavoritesId implements Serializable {
     private Integer userID;
     private Integer listingID;
 
+    // Thêm constructor không tham số (yêu cầu của JPA)
+    public FavoritesId() {
+    }
+
+    // Thêm constructor có tham số để giải quyết lỗi
+    public FavoritesId(Integer userID, Integer listingID) {
+        this.userID = userID;
+        this.listingID = listingID;
+    }
+
     // Getters and setters
     public Integer getUserID() {
         return userID;

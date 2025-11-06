@@ -95,7 +95,6 @@ function Header() {
           <nav className="main-nav">
             <a onClick={() => navigate('/buy')} className="nav-link">Mua sản phẩm</a>
             <a onClick={() => navigate('/sell')} className="nav-link">Tạo bài đăng</a>
-            <a href="#" className="nav-link">Liên hệ</a>
             <a onClick={() => navigate('/about')} className="nav-link">Về chúng tôi</a>
           </nav>
 

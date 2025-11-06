@@ -108,4 +108,15 @@ public class FavoritesService {
         List<Favorites> favs = favoritesRepository.findByIdUserID(u.get().getUserID());
         return favs.stream().map(Favorites::getListing).collect(Collectors.toList());
     }
+
+    /**
+     * Kiểm tra xem một listing có được user yêu thích không.
+     */
+    public boolean isFavorited(String username, Integer listingId) {
+        Optional<User> u = userRepository.findByUsername(username);
+        if (u.isEmpty()) return false;
+
+        FavoritesId id = new FavoritesId(u.get().getUserID(), listingId);
+        return favoritesRepository.existsById(id);
+    }
 }
