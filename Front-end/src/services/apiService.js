@@ -596,7 +596,10 @@ const apiService = {
         Accept: "*/*",
       },
     });
-    if (!res.ok) throw new Error("Không thể tải danh sách giao dịch");
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || "Không thể tải danh sách giao dịch");
+    }
     return await res.json();
   },
 
@@ -701,7 +704,10 @@ const apiService = {
         },
       }
     );
-    if (!res.ok) throw new Error("Không thể tải lịch sử thanh toán");
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || "Không thể tải lịch sử thanh toán");
+    }
     return await res.json();
   },
 
