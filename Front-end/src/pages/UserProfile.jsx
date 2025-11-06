@@ -21,6 +21,9 @@ function UserProfile() {
   const [editing, setEditing] = useState(false);
   const [feedback, setFeedback] = useState({ type: "", message: "" });
   const [listings, setListings] = useState([]);
+  const [sellerFeedback, setSellerFeedback] = useState(null);
+  const [sellerFeedbackLoading, setSellerFeedbackLoading] = useState(true);
+  const [sellerFeedbackError, setSellerFeedbackError] = useState("");
 
   const storedUser = useMemo(() => {
     try {
@@ -31,6 +34,24 @@ function UserProfile() {
   }, []);
 
   const userId = storedUser?.userID;
+
+  const sellerAverage = useMemo(
+    () => Number(sellerFeedback?.averageRating || 0),
+    [sellerFeedback]
+  );
+
+  const sellerTotalReviews = useMemo(
+    () => Number(sellerFeedback?.totalReviews || 0),
+    [sellerFeedback]
+  );
+
+  const highlightListings = useMemo(() => {
+    const source = sellerFeedback?.listings || [];
+    return source
+      .filter((listing) => Number(listing?.reviewCount) > 0)
+      .sort((a, b) => Number(b?.reviewCount || 0) - Number(a?.reviewCount || 0))
+      .slice(0, 3);
+  }, [sellerFeedback]);
 
   useEffect(() => {
     if (!userId) {
@@ -67,8 +88,23 @@ function UserProfile() {
       }
     }
 
+    async function fetchSellerStats() {
+      setSellerFeedbackLoading(true);
+      setSellerFeedbackError("");
+      try {
+        const data = await apiService.getSellerFeedback(userId);
+        setSellerFeedback(data || null);
+      } catch (err) {
+        setSellerFeedback(null);
+        setSellerFeedbackError(err.message || "Không thể tải đánh giá của người bán.");
+      } finally {
+        setSellerFeedbackLoading(false);
+      }
+    }
+
     fetchProfile();
     fetchListings();
+    fetchSellerStats();
   }, [navigate, userId]);
 
   const handleChange = (field) => (event) => {
@@ -183,6 +219,44 @@ function UserProfile() {
                       </span>
                     </div>
                   </div>
+                </section>
+
+                <section className="profile-section">
+                  <h2>Đánh giá từ người mua</h2>
+                  {sellerFeedbackLoading ? (
+                    <div className="profile-rating-loading">Đang tải thông tin đánh giá...</div>
+                  ) : sellerFeedbackError ? (
+                    <div className="profile-rating-error">{sellerFeedbackError}</div>
+                  ) : (
+                    <>
+                      <div className="profile-rating-card">
+                        <div className="profile-rating-score">
+                          <span className="score">{sellerAverage.toFixed(1)} ⭐</span>
+                          <span className="count">{sellerTotalReviews} lượt đánh giá</span>
+                        </div>
+                        <ul className="profile-rating-highlights">
+                          {highlightListings.length === 0 ? (
+                            <li className="empty">Chưa có bài đăng nào được đánh giá.</li>
+                          ) : (
+                            highlightListings.map((item) => (
+                              <li key={item.listingId || item.title}>
+                                <span className="listing-title">{item.title || "Bài đăng"}</span>
+                                <span className="listing-rating">{Number(item.averageRating || 0).toFixed(1)} ⭐</span>
+                                <span className="listing-count">({item.reviewCount} đánh giá)</span>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary profile-rating-link"
+                        onClick={() => navigate(`/seller/${userId}`)}
+                      >
+                        Xem chi tiết đánh giá
+                      </button>
+                    </>
+                  )}
                 </section>
 
                 <section className="profile-section">

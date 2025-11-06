@@ -28,9 +28,90 @@ const apiService = {
   create_new_complaint: `${API_BASE_URL}/complaints`,
 
   //review controller
-  create_new_review: `${API_BASE_URL}/reviews`,
-  get_reviews_for_listing: (listingId) =>
-    `${API_BASE_URL}/reviews/listing/${listingId}`,
+  create_new_review: async function (reviewPayload) {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Vui lòng đăng nhập để đánh giá.");
+
+    const userData = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("userData") || "{}");
+      } catch {
+        return {};
+      }
+    })();
+
+    const resolvedUserId = reviewPayload?.userId ?? userData?.userID;
+    const payload = {
+      ...reviewPayload,
+      userId: resolvedUserId != null ? Number(resolvedUserId) : resolvedUserId,
+    };
+
+    if (!payload.userId) {
+      throw new Error("Không xác định được người dùng. Vui lòng đăng nhập lại.");
+    }
+
+    const res = await fetch(`${API_BASE_URL}/reviews`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể gửi đánh giá");
+    }
+
+    return await res.json();
+  },
+
+  get_reviews_for_listing: async function (listingId) {
+    const res = await fetch(`${API_BASE_URL}/reviews/listing/${listingId}`, {
+      headers: {
+        Accept: "*/*",
+      },
+    });
+
+    if (res.status === 204) {
+      return [];
+    }
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể tải danh sách đánh giá");
+    }
+
+    return await res.json();
+  },
+
+  getSellerFeedback: async function (sellerId) {
+    if (!sellerId) throw new Error("Thiếu mã người bán");
+
+    const token = this.getAuthToken();
+    const headers = {
+      Accept: "*/*",
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE_URL}/sellers/${sellerId}/feedback`, {
+      headers,
+    });
+
+    if (res.status === 204) return null;
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể tải đánh giá người bán");
+    }
+
+    return await res.json();
+  },
 
   //favorite controller
   /**

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import defaultImage from "../assets/VinFast_VF5_Plus.jpg";
 import Header from "../components/Header";
@@ -25,6 +25,8 @@ function ProductDetail() {
   const [commentText, setCommentText] = useState("");
   const [commentRating, setCommentRating] = useState(5);
   const [commentLoading, setCommentLoading] = useState(false);
+  const [sellerFeedback, setSellerFeedback] = useState(null);
+  const [sellerRatingLoading, setSellerRatingLoading] = useState(false);
 
   // State mới cho gallery ảnh
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -96,8 +98,101 @@ function ProductDetail() {
     loadData();
   }, [id]);
 
+  const sellerProfileId = useMemo(() => {
+    const seller = item?.seller;
+    if (!seller) return null;
+    return seller.id ?? seller.userId ?? seller.userID ?? seller.user?.id ?? null;
+  }, [item]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!sellerProfileId) {
+      setSellerFeedback(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loadSellerFeedback = async () => {
+      setSellerRatingLoading(true);
+      try {
+        const data = await apiService.getSellerFeedback(sellerProfileId);
+        if (!cancelled) {
+          setSellerFeedback(data || null);
+        }
+      } catch {
+        if (!cancelled) {
+          setSellerFeedback(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setSellerRatingLoading(false);
+        }
+      }
+    };
+
+    loadSellerFeedback();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sellerProfileId]);
+
   const fmtPrice = (v) => v == null ? "—" : new Intl.NumberFormat("vi-VN").format(Number(v)) + " đ";
   const fmtDate = (s) => s ? new Date(s).toLocaleDateString("vi-VN") : "—";
+
+  const ratingStats = useMemo(() => {
+    const ratedComments = comments.filter((c) => Number.isFinite(Number(c?.rating)));
+    const count = ratedComments.length;
+    const sum = ratedComments.reduce((acc, c) => acc + Number(c.rating || 0), 0);
+    const fallbackAvg = Number(item?.averageRating || 0);
+
+    if (count > 0) {
+      const average = sum / count;
+      return {
+        average,
+        count,
+        hasReviews: true,
+        label: `${average.toFixed(1)} ⭐ (${count} đánh giá)`
+      };
+    }
+
+    if (fallbackAvg > 0) {
+      return {
+        average: fallbackAvg,
+        count: 0,
+        hasReviews: true,
+        label: `${fallbackAvg.toFixed(1)} ⭐`
+      };
+    }
+
+    if (sellerRatingLoading) {
+      return {
+        average: 0,
+        count: 0,
+        hasReviews: false,
+        label: "Đang tải đánh giá..."
+      };
+    }
+
+    const sellerCount = Number(sellerFeedback?.totalReviews || 0);
+    const sellerAvg = Number(sellerFeedback?.averageRating || 0);
+    if (sellerCount > 0 && sellerAvg > 0) {
+      return {
+        average: sellerAvg,
+        count: sellerCount,
+        hasReviews: true,
+        label: `Người bán: ${sellerAvg.toFixed(1)} ⭐ (${sellerCount} đánh giá)`
+      };
+    }
+
+    return {
+      average: 0,
+      count: 0,
+      hasReviews: false,
+      label: "Chưa có đánh giá"
+    };
+  }, [comments, item?.averageRating, sellerFeedback, sellerRatingLoading]);
 
   // Hàm xử lý chuyển ảnh
   const handleImageNavigation = (direction) => {
@@ -134,16 +229,42 @@ function ProductDetail() {
     e.preventDefault();
     setCommentLoading(true);
     try {
-      // Giả sử bạn có hàm này trong apiService
-      await apiService.create_new_review({ listingId: id, comment: commentText, rating: commentRating });
+      if (!apiService.isAuthenticated()) {
+        showToast("Vui lòng đăng nhập để gửi đánh giá.", "warning");
+        navigate("/login");
+        return;
+      }
+
+      // Gửi đánh giá cho bài đăng hiện tại
+      await apiService.create_new_review({
+        listingId: Number(id),
+        comment: commentText,
+        rating: commentRating,
+      });
       showToast("Đã gửi bình luận!", "success");
       setCommentText("");
       setCommentRating(5);
-      fetchComments();
+      await fetchComments();
     } catch (err) {
-      showToast("Gửi bình luận thất bại.", "error");
+      showToast(err.message || "Gửi bình luận thất bại.", "error");
     } finally {
       setCommentLoading(false);
+    }
+  };
+
+  const seller = item?.seller ?? {};
+  const sellerId = sellerProfileId;
+
+  const handleSellerProfile = () => {
+    if (sellerId) {
+      navigate(`/seller/${sellerId}`);
+    }
+  };
+
+  const scrollToComments = () => {
+    const el = document.getElementById("pd-comments");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -210,7 +331,6 @@ function ProductDetail() {
   if (!item) return <div className="pd-empty">Không tìm thấy sản phẩm.</div>;
 
   const product = item.product ?? {};
-  const seller = item.seller ?? {};
   const hideOrderBtn = ["PROCESSING", "SOLD"].includes(String(item.status).toUpperCase());
   const imageList = item.images?.length ? item.images : [{ url: item.display, isPrimary: true }];
 
@@ -268,11 +388,38 @@ function ProductDetail() {
             <div className="pd-price">{fmtPrice(item.price)}</div>
 
             <div className="pd-seller-card">
-              <div className="pd-seller-avatar">👤</div>
+              <button
+                type="button"
+                className="pd-seller-avatar"
+                onClick={handleSellerProfile}
+                disabled={!sellerId}
+              >
+                👤
+              </button>
               <div className="pd-seller-info">
-                <div className="pd-seller-name">{seller.username || "—"}</div>
+                <button
+                  type="button"
+                  className="pd-seller-name"
+                  onClick={handleSellerProfile}
+                  disabled={!sellerId}
+                >
+                  {seller.username || "—"}
+                </button>
                 <div className="pd-seller-meta">Đăng ngày: {fmtDate(item.createdAt)}</div>
+                <button
+                  type="button"
+                  className={`pd-seller-rating ${ratingStats.hasReviews ? "" : "pd-seller-rating-empty"}`.trim()}
+                  onClick={scrollToComments}
+                  disabled={!ratingStats.hasReviews}
+                >
+                  {ratingStats.label}
+                </button>
               </div>
+              {sellerId && (
+                <button type="button" className="pd-btn tertiary" onClick={handleSellerProfile}>
+                  Xem hồ sơ
+                </button>
+              )}
             </div>
 
             <div className="pd-actions">
@@ -314,8 +461,13 @@ function ProductDetail() {
             </ul>
           </div>
 
-          <div className="pd-details-card">
-            <h3>Bình luận & Đánh giá</h3>
+            <div className="pd-details-card" id="pd-comments">
+            <div className="pd-comments-header">
+              <h3>Bình luận & Đánh giá</h3>
+              <span className={`pd-comments-summary ${ratingStats.hasReviews ? "" : "pd-comments-summary-empty"}`.trim()}>
+                {ratingStats.label}
+              </span>
+            </div>
             <form className="pd-comment-form" onSubmit={handleCommentSubmit}>
               <textarea
                 value={commentText}

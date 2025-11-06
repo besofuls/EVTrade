@@ -25,6 +25,7 @@ public final class SecurityPaths {
         // DocuSeal webhook callback (no auth; verified by header secret)
         "/api/contracts/webhook",
         "/api/system-config/public/**", // Thêm dòng này
+        "/api/sellers/**",
 
     };
 
