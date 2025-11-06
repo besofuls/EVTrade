@@ -145,37 +145,34 @@ public class OrderService {
     public PaymentResponseDTO createPayment(PaymentRequestDTO dto, Authentication authentication) {
         logger.info("Creating payment for transaction ID: {}", dto.getTransactionId());
 
-        // Lấy thông tin người dùng từ token
         String username = authentication.getName();
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> {
-                    logger.error("User not found: {}", username);
-                    return new RuntimeException("User not found");
-                });
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Lấy transaction
         Transaction transaction = transactionRepository.findById(dto.getTransactionId())
-                .orElseThrow(() -> {
-                    logger.error("Transaction not found: {}", dto.getTransactionId());
-                    return new RuntimeException("Transaction not found");
-                });
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
 
-        // Kiểm tra người dùng có quyền thanh toán (là người mua của order)
         Order order = transaction.getOrder();
-        if (!user.getUserID().equals(order.getBuyer().getUserID())) {
-            logger.error("User {} is not authorized to pay for order {}", username, order.getOrderID());
-            throw new RuntimeException("Not authorized to pay for this order");
+        String txnRef;
+        Integer orderId = null;
+
+        if (order != null) {
+            // Giao dịch có Order
+            if (!user.getUserID().equals(order.getBuyer().getUserID())) {
+                throw new RuntimeException("Not authorized to pay for this order");
+            }
+            BigDecimal remainingAmount = transaction.getTotalAmount().subtract(transaction.getPaidAmount());
+            if (dto.getAmount().compareTo(remainingAmount) > 0) {
+                throw new RuntimeException("Payment amount exceeds remaining amount");
+            }
+            txnRef = "ORDER_" + order.getOrderID() + "_" + System.currentTimeMillis();
+            orderId = order.getOrderID();
+        } else {
+            // Giao dịch dịch vụ (không có Order)
+            // Giả sử người dùng nào cũng có thể trả tiền cho giao dịch dịch vụ
+            txnRef = "SERVICE_" + transaction.getTransactionID() + "_" + System.currentTimeMillis();
         }
 
-        // Kiểm tra số tiền thanh toán hợp lệ
-        BigDecimal remainingAmount = transaction.getTotalAmount().subtract(transaction.getPaidAmount());
-        if (dto.getAmount().compareTo(remainingAmount) > 0) {
-            logger.error("Payment amount {} exceeds remaining amount {}",
-                    dto.getAmount(), remainingAmount);
-            throw new RuntimeException("Payment amount exceeds remaining amount");
-        }
-
-        // Tạo Payment
         Payment payment = new Payment();
         payment.setTransaction(transaction);
         payment.setAmount(dto.getAmount());
@@ -183,48 +180,31 @@ public class OrderService {
         payment.setProvider(dto.getPaymentProvider());
         payment.setStatus("PENDING");
         payment.setPaidAt(new Date());
-        
-        // *** THÊM DÒNG NÀY ĐỂ LƯU SELLER ID ***
-        payment.setSellerId(transaction.getOrder().getListing().getUser().getUserID());
-
-        // Thêm TxnRef vào payment
-        String txnRef = "ORDER_" + transaction.getOrder().getOrderID() + "_" + System.currentTimeMillis();
         payment.setTxnRef(txnRef);
+        
+        if (order != null && order.getListing() != null && order.getListing().getUser() != null) {
+            payment.setSellerId(order.getListing().getUser().getUserID());
+        }
 
         Payment savedPayment = paymentRepository.save(payment);
 
-        // Nếu chọn phương thức VNPAY thì sinh URL và trả về cho FE
-        if ("VNPAY".equalsIgnoreCase(dto.getPaymentMethod())) {
-            String ipAddr = "127.0.0.1"; // Lấy từ request thực tế nếu cần
-            String paymentUrl = VnpayUtil.createPaymentUrl(
-                    vnpTmnCode, vnpHashSecret, vnpPayUrl, vnpReturnUrl,
-                    dto.getAmount(), txnRef, ipAddr); // Sử dụng txnRef mới
-
-            PaymentResponseDTO response = new PaymentResponseDTO();
-            response.setPaymentId(savedPayment.getPaymentID());
-            response.setTransactionId(savedPayment.getTransaction().getTransactionID());
-            response.setOrderId(order.getOrderID());
-            response.setAmount(savedPayment.getAmount());
-            response.setMethod(savedPayment.getMethod());
-            response.setProvider(savedPayment.getProvider());
-            response.setStatus(savedPayment.getStatus());
-            response.setPaidAt(savedPayment.getPaidAt());
-            // Thêm trường paymentUrl (bổ sung vào DTO nếu chưa có)
-            response.setPaymentUrl(paymentUrl);
-
-            return response;
-        }
-
-        // Tạo response DTO
         PaymentResponseDTO response = new PaymentResponseDTO();
         response.setPaymentId(savedPayment.getPaymentID());
         response.setTransactionId(savedPayment.getTransaction().getTransactionID());
-        response.setOrderId(order.getOrderID());
+        response.setOrderId(orderId);
         response.setAmount(savedPayment.getAmount());
         response.setMethod(savedPayment.getMethod());
         response.setProvider(savedPayment.getProvider());
         response.setStatus(savedPayment.getStatus());
         response.setPaidAt(savedPayment.getPaidAt());
+
+        if ("VNPAY".equalsIgnoreCase(dto.getPaymentMethod())) {
+            String ipAddr = "127.0.0.1";
+            String paymentUrl = VnpayUtil.createPaymentUrl(
+                    vnpTmnCode, vnpHashSecret, vnpPayUrl, vnpReturnUrl,
+                    dto.getAmount(), txnRef, ipAddr);
+            response.setPaymentUrl(paymentUrl);
+        }
 
         return response;
     }
@@ -241,14 +221,22 @@ public class OrderService {
             OrderResponseDTO dto = new OrderResponseDTO();
             dto.setOrderId(order.getOrderID());
             dto.setBuyerId(order.getBuyer().getUserID());
-            dto.setSellerId(order.getListing().getUser().getUserID());
-            dto.setListingId(order.getListing().getListingID());
+            
+            Listing listing = order.getListing();
+            if (listing != null) {
+                dto.setListingId(listing.getListingID());
+                // === DÒNG QUAN TRỌNG: LẤY TIÊU ĐỀ BÀI ĐĂNG ===
+                dto.setListingTitle(listing.getTitle()); 
+                if (listing.getUser() != null) {
+                    dto.setSellerId(listing.getUser().getUserID());
+                }
+            }
+
             dto.setQuantity(order.getQuantity());
             dto.setPrice(order.getPrice());
             dto.setTotalAmount(order.getTotalAmount());
             dto.setStatus(order.getStatus());
 
-            // Lấy transaction ID nếu có
             Transaction transaction = transactionRepository.findByOrder(order).orElse(null);
             if (transaction != null) {
                 dto.setTransactionId(transaction.getTransactionID());
@@ -268,7 +256,6 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        // Kiểm tra người dùng có quyền xem đơn hàng
         if (!order.getBuyer().getUserID().equals(user.getUserID()) &&
                 !order.getListing().getUser().getUserID().equals(user.getUserID())) {
             logger.error("User {} attempted unauthorized access to order {}", username, orderId);
@@ -285,7 +272,6 @@ public class OrderService {
         dto.setTotalAmount(order.getTotalAmount());
         dto.setStatus(order.getStatus());
 
-        // Lấy transaction
         Transaction transaction = transactionRepository.findByOrder(order).orElse(null);
         if (transaction != null) {
             dto.setTransactionId(transaction.getTransactionID());
@@ -304,9 +290,9 @@ public class OrderService {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
 
-        // Kiểm tra người dùng có quyền xem thanh toán
-        if (!transaction.getOrder().getBuyer().getUserID().equals(user.getUserID()) &&
-                !transaction.getOrder().getListing().getUser().getUserID().equals(user.getUserID())) {
+        Order order = transaction.getOrder();
+        if (order != null && !order.getBuyer().getUserID().equals(user.getUserID()) &&
+                !order.getListing().getUser().getUserID().equals(user.getUserID())) {
             logger.error("User {} attempted unauthorized access to transaction {}", username, transactionId);
             throw new RuntimeException("Not authorized to view this transaction");
         }
@@ -317,7 +303,11 @@ public class OrderService {
             PaymentResponseDTO dto = new PaymentResponseDTO();
             dto.setPaymentId(payment.getPaymentID());
             dto.setTransactionId(payment.getTransaction().getTransactionID());
-            dto.setOrderId(payment.getTransaction().getOrder().getOrderID());
+            if (order != null) {
+                dto.setOrderId(order.getOrderID());
+            } else {
+                dto.setOrderId(null);
+            }
             dto.setAmount(payment.getAmount());
             dto.setMethod(payment.getMethod());
             dto.setProvider(payment.getProvider());
@@ -327,39 +317,37 @@ public class OrderService {
         }).collect(Collectors.toList());
     }
 
-    /**
-     * Xử lý logic sau khi một thanh toán cho đơn hàng thành công.
-     * Phương thức này được gọi bởi VnpayService.
-     */
     @Transactional
     public void processSuccessfulOrderPayment(Transaction transaction, Payment payment) {
-        Order order = transaction.getOrder();
-
         transaction.setPaidAmount(transaction.getPaidAmount().add(payment.getAmount()));
-        if (transaction.getPaidAmount().compareTo(transaction.getTotalAmount()) >= 0) {
-            transaction.setStatus("FULLY_PAID");
-            order.setStatus("COMPLETED");
-            orderRepository.save(order);
+        
+        Order order = transaction.getOrder();
+        if (order != null) {
+            // Logic cho giao dịch có Order
+            if (transaction.getPaidAmount().compareTo(transaction.getTotalAmount()) >= 0) {
+                transaction.setStatus("FULLY_PAID");
+                order.setStatus("COMPLETED");
+                orderRepository.save(order);
 
-            Listing listing = order.getListing();
-            if (listing != null) {
-                listing.setStatus("SOLD");
-                listingRepository.save(listing);
+                Listing listing = order.getListing();
+                if (listing != null) {
+                    listing.setStatus("SOLD");
+                    listingRepository.save(listing);
+                }
+            } else {
+                transaction.setStatus("PARTIALLY_PAID");
             }
         } else {
-            transaction.setStatus("PARTIALLY_PAID");
+            // Logic cho giao dịch dịch vụ (không có Order)
+            if (transaction.getPaidAmount().compareTo(transaction.getTotalAmount()) >= 0) {
+                transaction.setStatus("FULLY_PAID");
+            } else {
+                transaction.setStatus("PARTIALLY_PAID");
+            }
         }
         transactionRepository.save(transaction);
     }
 
-    /**
-     * Tạo Transaction Report cho BẤT KỲ user nào (dành cho Admin)
-     * 
-     * @param userId   ID của user cần tạo report
-     * @param fromDate Ngày bắt đầu
-     * @param toDate   Ngày kết thúc
-     * @return TransactionReportDTO
-     */
     public TransactionReportDTO generateTransactionReportByUserId(
             Integer userId,
             Date fromDate,
@@ -367,14 +355,9 @@ public class OrderService {
 
         logger.info("Generating transaction report for user ID: {}", userId);
 
-        // Tìm user theo ID (không dùng authentication)
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    logger.error("User not found with ID: {}", userId);
-                    return new RuntimeException("User not found: " + userId);
-                });
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
 
-        // Lấy danh sách transactions của user này
         List<Transaction> transactions;
         if (fromDate != null && toDate != null) {
             transactions = transactionRepository.findByOrder_BuyerAndCreatedAtBetween(
@@ -383,7 +366,6 @@ public class OrderService {
             transactions = transactionRepository.findByOrder_Buyer(user);
         }
 
-        // Tạo report DTO (logic giống hệt generateTransactionReport)
         TransactionReportDTO report = new TransactionReportDTO();
         report.setUserId(user.getUserID());
         report.setUsername(user.getUsername());
@@ -391,7 +373,6 @@ public class OrderService {
         report.setFromDate(fromDate);
         report.setToDate(toDate);
 
-        // Tính toán thống kê
         report.setTotalOrders(transactions.size());
 
         int completedCount = 0;
@@ -418,11 +399,11 @@ public class OrderService {
         report.setTotalPaid(totalPaid);
         report.setTotalRemaining(totalRemaining);
 
-        // Chi tiết giao dịch
         List<TransactionReportDTO.TransactionDetailDTO> details = transactions.stream()
                 .map(t -> {
                     TransactionReportDTO.TransactionDetailDTO detail = new TransactionReportDTO.TransactionDetailDTO();
                     detail.setTransactionId(t.getTransactionID());
+                    // An toàn vì query đã lọc transaction có order
                     detail.setOrderId(t.getOrder().getOrderID());
                     detail.setListingTitle(t.getOrder().getListing().getTitle());
                     detail.setTotalAmount(t.getTotalAmount());
@@ -474,7 +455,6 @@ public class OrderService {
 
         List<Transaction> transactions = transactionRepository.findByOrder_Buyer(user);
 
-        // Chỉ lấy status FULLY_PAID
         return transactions.stream()
                 .filter(t -> "FULLY_PAID".equals(t.getStatus()))
                 .map(t -> {
@@ -499,25 +479,40 @@ public class OrderService {
             dto.setExpiredAt(t.getDueTime());
             dto.setStatus(t.getStatus());
             dto.setTotalAmount(t.getTotalAmount());
-            dto.setOrderId(t.getOrder().getOrderID());
             dto.setPaidAmount(t.getPaidAmount());
 
-            // Thêm thông tin người mua, người bán, tiêu đề bài đăng
             Order order = t.getOrder();
             if (order != null) {
+                dto.setOrderId(order.getOrderID());
+
                 User buyer = order.getBuyer();
                 if (buyer != null) {
                     dto.setBuyerUsername(buyer.getUsername());
                     dto.setBuyerEmail(buyer.getEmail());
                 }
+
                 Listing listing = order.getListing();
                 if (listing != null) {
+                    dto.setListingTitle(listing.getTitle());
                     User seller = listing.getUser();
                     if (seller != null) {
                         dto.setSellerUsername(seller.getUsername());
                         dto.setSellerEmail(seller.getEmail());
                     }
-                    dto.setListingTitle(listing.getTitle());
+                }
+            } else {
+                dto.setOrderId(null);
+                if ("LISTING_EXTEND".equals(t.getReferenceType()) && t.getReferenceID() != null) {
+                    listingRepository.findById(t.getReferenceID()).ifPresent(listing -> {
+                        dto.setListingTitle(listing.getTitle());
+                        User user = listing.getUser();
+                        if (user != null) {
+                            dto.setSellerUsername(user.getUsername());
+                            dto.setSellerEmail(user.getEmail());
+                        }
+                    });
+                } else {
+                    dto.setListingTitle("Dịch vụ: " + (t.getType() != null ? t.getType() : "Không xác định"));
                 }
             }
             return dto;
@@ -575,14 +570,20 @@ public class OrderService {
             PaymentResponseDTO dto = new PaymentResponseDTO();
             dto.setPaymentId(payment.getPaymentID());
             dto.setTransactionId(payment.getTransaction().getTransactionID());
-            dto.setOrderId(payment.getTransaction().getOrder().getOrderID());
             dto.setAmount(payment.getAmount());
             dto.setMethod(payment.getMethod());
             dto.setProvider(payment.getProvider());
             dto.setStatus(payment.getStatus());
             dto.setPaidAt(payment.getPaidAt());
+
+            Order order = payment.getTransaction().getOrder();
+            if (order != null) {
+                dto.setOrderId(order.getOrderID());
+            } else {
+                dto.setOrderId(null);
+            }
+
             return dto;
         }).collect(Collectors.toList());
     }
-
 }
