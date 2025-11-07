@@ -5,6 +5,18 @@ import { useToast } from "../contexts/ToastContext";
 import apiService from "../services/apiService";
 import "./SellCars.css";
 
+const formatCurrency = (value) => {
+  if (!value) return "";
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return "";
+  return new Intl.NumberFormat("vi-VN").format(numeric);
+};
+
+const normalizeCurrencyInput = (value) => {
+  if (!value) return "";
+  return value.toString().replace(/[^\d]/g, "");
+};
+
 function SellCars() {
   const navigate = useNavigate();
   const [brands, setBrands] = useState([]);
@@ -72,20 +84,29 @@ function SellCars() {
   // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Nếu thay đổi trường "price" thì cập nhật luôn các trường bên dưới
     if (name === "price") {
+      const normalized = normalizeCurrencyInput(value);
       setFormData((prev) => ({
         ...prev,
-        price: value,
-        vehiclePrice: value,
-        batteryPrice: value,
+        price: normalized,
+        vehiclePrice: normalized,
+        batteryPrice: normalized,
       }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      return;
     }
+    if (name === "vehiclePrice" || name === "batteryPrice") {
+      const normalized = normalizeCurrencyInput(value);
+      setFormData((prev) => ({
+        ...prev,
+        [name]: normalized,
+      }));
+      return;
+    }
+    // Nếu thay đổi trường "price" thì cập nhật luôn các trường bên dưới
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   // Handle file upload
@@ -211,12 +232,11 @@ function SellCars() {
                 <div className="form-group">
                   <label className="form-label required">Giá bán (VNĐ)</label>
                   <input
-                    type="number"
+                    type="text"
                     name="price"
-                    value={formData.price}
+                    value={formatCurrency(formData.price)}
                     onChange={handleChange}
                     required
-                    min="0"
                     className="form-control"
                     placeholder="VD: 50000000"
                   />
@@ -335,12 +355,11 @@ function SellCars() {
                           Giá xe (VNĐ)
                         </label>
                         <input
-                          type="number"
+                          type="text"
                           name="vehiclePrice"
-                          value={formData.vehiclePrice}
+                          value={formatCurrency(formData.vehiclePrice)}
                           readOnly
                           required
-                          min="0"
                           className="form-control"
                           placeholder="VD: 40000000"
                         />
@@ -418,12 +437,11 @@ function SellCars() {
                           Giá pin (VNĐ)
                         </label>
                         <input
-                          type="number"
+                          type="text"
                           name="batteryPrice"
-                          value={formData.batteryPrice}
+                          value={formatCurrency(formData.batteryPrice)}
                           readOnly
                           required
-                          min="0"
                           className="form-control"
                           placeholder="VD: 2500"
                         />
