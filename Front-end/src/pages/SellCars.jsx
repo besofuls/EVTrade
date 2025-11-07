@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
+import { useToast } from "../contexts/ToastContext";
 import apiService from "../services/apiService";
 import "./SellCars.css";
 
@@ -12,6 +13,7 @@ function SellCars() {
   const [error, setError] = useState("");
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const { showToast } = useToast();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -44,7 +46,9 @@ function SellCars() {
       const token = apiService.getAuthToken();
       if (!token || apiService.isTokenExpired()) {
         apiService.clearAuthToken();
+        showToast("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "warning");
         navigate("/login");
+        setLoading(false);
         return;
       }
       try {
@@ -55,13 +59,15 @@ function SellCars() {
         const categoriesData = await apiService.getCategories();
         setCategories(categoriesData);
       } catch (err) {
-        setError(err.message);
+        const message = err.message || "Không thể tải dữ liệu cần thiết.";
+        setError(message);
+        showToast(message, "error");
       } finally {
         setLoading(false);
       }
     }
     fetchData();
-  }, [navigate]);
+  }, [navigate, showToast]);
 
   // Handle input change
   const handleChange = (e) => {
@@ -112,7 +118,9 @@ function SellCars() {
     const token = apiService.getAuthToken();
     if (!token || apiService.isTokenExpired()) {
       apiService.clearAuthToken();
+      showToast("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "warning");
       navigate("/login");
+      setSubmitting(false);
       return;
     }
     try {
@@ -148,10 +156,11 @@ function SellCars() {
       // Gọi apiService để gửi bài đăng
       await apiService.createProductPost(listingObj, formData.images);
 
-      alert("Đã đăng tin thành công! Tin của bạn đang chờ duyệt.");
+      showToast("Đã đăng tin thành công! Tin của bạn đang chờ duyệt.", "success");
       navigate("/buy");
     } catch (err) {
       setError(err.message);
+      showToast(err.message || "Đăng tin thất bại. Vui lòng thử lại.", "error");
     } finally {
       setSubmitting(false); // Mở lại nút sau khi gửi xong
     }

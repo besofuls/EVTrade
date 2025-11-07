@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import backgroundVideo from '../assets/33vfxVliVS7mnZQ8o2LDBHzOqvL.mp4'
 import apiService from '../services/apiService'
+import { useToast } from '../contexts/ToastContext'
 import './Register.css'
 
 function Register() {
@@ -18,6 +19,7 @@ function Register() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -81,7 +83,7 @@ function Register() {
             // Trigger storage event để Header cập nhật
             window.dispatchEvent(new Event('storage'))
             
-            alert('Đăng ký thành công! Chào mừng bạn đến với EVMARKETPLAY.VN!')
+            showToast('Đăng ký thành công! Chào mừng bạn đến với EVMARKETPLAY.VN!', 'success')
             
             // Chuyển về trang chủ với trạng thái đã đăng nhập
             setTimeout(() => {
@@ -89,13 +91,13 @@ function Register() {
             }, 100)
           } else {
             // Nếu auto-login fail, chuyển đến trang login
-            alert('Đăng ký thành công! Vui lòng đăng nhập.')
+            showToast('Đăng ký thành công! Vui lòng đăng nhập.', 'info')
             navigate('/login')
           }
         } catch (loginErr) {
           console.error('Auto-login error:', loginErr)
           // Nếu auto-login fail, vẫn cho user đăng nhập thủ công
-          alert('Đăng ký thành công! Vui lòng đăng nhập.')
+          showToast('Đăng ký thành công! Vui lòng đăng nhập.', 'info')
           navigate('/login')
         }
       } else {

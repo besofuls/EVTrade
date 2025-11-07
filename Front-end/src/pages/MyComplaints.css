@@ -1,0 +1,134 @@
+.my-complaints-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fb;
+}
+
+.my-complaints-main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px 48px;
+}
+
+.my-complaints-card {
+  width: 100%;
+  max-width: 1000px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px 32px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+}
+
+.my-complaints-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.my-complaints-header p {
+  margin: 6px 0 20px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.my-complaints-state,
+.my-complaints-error,
+.my-complaints-empty {
+  padding: 24px;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 15px;
+  color: #6b7280;
+}
+
+.my-complaints-error {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.my-complaints-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.my-complaints-table th,
+.my-complaints-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.my-complaints-table th {
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+}
+
+.my-complaints-table tr:last-child td {
+  border-bottom: none;
+}
+
+.my-complaints-link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+
+.my-complaints-link:hover {
+  text-decoration: underline;
+}
+
+.my-complaints-content {
+  max-width: 320px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1f2937;
+}
+
+.complaint-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.status-pending {
+  background: #fef9c3;
+  color: #92400e;
+}
+
+.status-resolved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 768px) {
+  .my-complaints-card {
+    padding: 22px;
+  }
+
+  .my-complaints-table {
+    font-size: 13px;
+  }
+
+  .my-complaints-content {
+    max-width: 220px;
+  }
+}

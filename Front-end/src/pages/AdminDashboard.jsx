@@ -4,6 +4,7 @@ import UserManagement from "./UserManagement";
 import ProductManagement from "./ProductManagement";
 import TransactionManagement from "./TransactionManagement";
 import ContractManagement from "./ContractManagement";
+import ComplaintManagement from "./ComplaintManagement";
 import "./AdminDashboard.css";
 
 function AdminDashboard() {
@@ -16,8 +17,9 @@ function AdminDashboard() {
         <h1 className="admin-dashboard-title">Admin Dashboard</h1>
         {activeTab === "users" && <UserManagement />}
         {activeTab === "posts" && <ProductManagement />}
-        {activeTab === "orders" && <TransactionManagement />}
-  {activeTab === "contracts" && <ContractManagement />}
+    {activeTab === "orders" && <TransactionManagement />}
+    {activeTab === "complaints" && <ComplaintManagement />}
+    {activeTab === "contracts" && <ContractManagement />}
         {/* Nếu muốn giữ trang tổng quan */}
         {activeTab === "overview" && (
           <>

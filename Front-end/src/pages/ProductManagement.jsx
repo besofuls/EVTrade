@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useToast } from "../contexts/ToastContext";
 import apiService from "../services/apiService";
 import "./ProductManagement.css";
 
@@ -15,6 +16,7 @@ function ProductManagement() {
   const [confirmAction, setConfirmAction] = useState(null); // {type: 'approve'|'reject', id: number}
   const [showRejectInput, setShowRejectInput] = useState(false); // Thêm state để kiểm soát hiển thị ô nhập lý do
   const [zoomImageUrl, setZoomImageUrl] = useState(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     setLoading(true);
@@ -22,16 +24,24 @@ function ProductManagement() {
     if (activeTab === "all") {
       apiService.getAllListings()
         .then(data => setPosts(data.content || []))
-        .catch(err => setError(err.message))
+        .catch(err => {
+          const message = err.message || "Không thể tải danh sách bài đăng.";
+          setError(message);
+          showToast(message, "error");
+        })
         .finally(() => setLoading(false));
     }
     if (activeTab === "moderation") {
       apiService.getListingsPending()
         .then(data => setPendingPosts(data.content || []))
-        .catch(err => setError(err.message))
+        .catch(err => {
+          const message = err.message || "Không thể tải danh sách bài chờ duyệt.";
+          setError(message);
+          showToast(message, "error");
+        })
         .finally(() => setLoading(false));
     }
-  }, [activeTab]);
+  }, [activeTab, showToast]);
 
   // Mở modal chi tiết bài đăng
   const handleOpenDetail = (post) => {
@@ -47,7 +57,7 @@ function ProductManagement() {
   // Từ chối bài đăng với lý do
   const handleReject = (id) => {
     if (!rejectReason.trim()) {
-      alert("Vui lòng nhập lý do từ chối!");
+      showToast("Vui lòng nhập lý do từ chối!", "warning");
       return;
     }
     setConfirmAction({ type: "reject", id });
@@ -59,9 +69,9 @@ function ProductManagement() {
       setPendingPosts(pendingPosts => pendingPosts.filter(p => p.id !== id));
       setShowModal(false);
       setConfirmAction(null);
-      alert("Đã duyệt bài đăng!");
+      showToast("Đã duyệt bài đăng!", "success");
     } catch (err) {
-      alert("Duyệt bài đăng thất bại: " + err.message);
+      showToast("Duyệt bài đăng thất bại: " + err.message, "error");
     }
   };
 
@@ -73,9 +83,9 @@ function ProductManagement() {
       setShowModal(false);
       setConfirmAction(null);
       setShowRejectInput(false);
-      alert("Đã từ chối bài đăng!");
+      showToast("Đã từ chối bài đăng!", "success");
     } catch (err) {
-      alert("Từ chối bài đăng thất bại: " + err.message);
+      showToast("Từ chối bài đăng thất bại: " + err.message, "error");
     }
     setRejectLoading(false);
   };
@@ -253,7 +263,7 @@ function ProductManagement() {
                     style={{ background: "#c62828", color: "#fff", marginTop: 8 }}
                     onClick={() => {
                       if (!rejectReason.trim()) {
-                        alert("Vui lòng nhập lý do từ chối!");
+                        showToast("Vui lòng nhập lý do từ chối!", "warning");
                         return;
                       }
                       setConfirmAction({ type: "reject", id: selectedPost.id });

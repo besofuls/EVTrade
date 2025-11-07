@@ -10,22 +10,112 @@ const apiService = {
   /**
    * @param {number} complaintId - ID của khiếu nại cần giải quyết.
    */
-  resolve_complaint: (complaintId) =>
-    `${API_BASE_URL}/complaints/${complaintId}/resolve`,
+  resolve_complaint: async function (complaintId, status) {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+    const res = await fetch(`${API_BASE_URL}/complaints/${complaintId}/resolve`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể cập nhật trạng thái khiếu nại");
+    }
+
+    return await res.json();
+  },
 
   /**
-   * Lấy danh sách khiếu nại, có thể lọc theo trạng thái.
-   * @param {object} params - Đối tượng chứa tham số lọc. Ví dụ: { status: 'PENDING' }
+   * Lấy danh sách khiếu nại (dành cho admin/moderator).
+   * @param {object} params - ví dụ { status: 'Pending' }
    */
-  get_all_complaints: (params = {}) => {
-    // Tái sử dụng logic URLSearchParams đã dùng trước đây
+  get_all_complaints: async function (params = {}) {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+
     const query = new URLSearchParams(params).toString();
     const queryString = query ? `?${query}` : "";
 
-    return `${API_BASE_URL}/complaints${queryString}`;
+    const res = await fetch(`${API_BASE_URL}/complaints${queryString}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể tải danh sách khiếu nại");
+    }
+
+    if (res.status === 204) return [];
+
+    return await res.json();
   },
 
-  create_new_complaint: `${API_BASE_URL}/complaints`,
+  createComplaint: async function ({ listingId, content }) {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Bạn cần đăng nhập để gửi khiếu nại.");
+
+    const userData = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("userData") || "{}");
+      } catch {
+        return {};
+      }
+    })();
+
+    const userId = userData?.userID;
+    if (!userId) throw new Error("Không xác định được người dùng. Vui lòng đăng nhập lại.");
+
+    const payload = {
+      userId,
+      listingId: Number(listingId),
+      content,
+    };
+
+    const res = await fetch(`${API_BASE_URL}/complaints`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể gửi khiếu nại");
+    }
+
+    return await res.json();
+  },
+
+  getMyComplaints: async function () {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+
+    const userData = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("userData") || "{}");
+      } catch {
+        return {};
+      }
+    })();
+
+    const userId = userData?.userID;
+    if (!userId) throw new Error("Không xác định được người dùng. Vui lòng đăng nhập lại.");
+
+    const list = await this.get_all_complaints();
+    return Array.isArray(list) ? list.filter((item) => item?.user?.userID === userId) : [];
+  },
 
   //review controller
   create_new_review: async function (reviewPayload) {
@@ -827,8 +917,8 @@ const persistAuthData = (data) => {
   localStorage.setItem("roleName", roleAttribute);
 
   if (roleAttribute === "Admin") {
-    alert(
-      `✅ Đã đăng nhập là ADMIN\n\nUser: ${data.username}\nEmail: ${data.email}`
+    console.info(
+      `Admin login detected for ${data.username || "unknown user"} (${data.email || "no email"}).`
     );
   }
 };

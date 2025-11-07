@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { useToast } from "../contexts/ToastContext";
 import apiService from "../services/apiService";
 import Modal from "react-modal";
 import "./MyListings.css";
@@ -44,6 +45,7 @@ const FILTER_MAP = {
 
 function MyListings() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [listings, setListings] = useState([]);
   const [filter, setFilter] = useState("ALL");
   const [showListingModal, setShowListingModal] = useState(false);
@@ -73,9 +75,9 @@ function MyListings() {
     const paymentStatus = params.get("payment_status");
     const reason = params.get("reason");
     if (paymentStatus === "success") {
-      alert("Thanh toán gia hạn thành công!");
+      showToast("Thanh toán gia hạn thành công!", "success");
     } else if (paymentStatus === "fail") {
-      alert(`Thanh toán gia hạn thất bại: ${reason || 'Lỗi không xác định'}`);
+      showToast(`Thanh toán gia hạn thất bại: ${reason || "Lỗi không xác định"}`, "error");
     }
     // Xóa query params khỏi URL để không hiển thị lại thông báo khi refresh
     if (paymentStatus) {
@@ -101,7 +103,7 @@ function MyListings() {
     }
     fetchListings();
     fetchMeta();
-  }, [navigate]);
+  }, [navigate, showToast]);
 
   useEffect(() => {
     if (!listingImages || listingImages.length === 0) {

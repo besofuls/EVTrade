@@ -7,7 +7,7 @@ function Footer() {
       <div className="container">
         <div className="row">
           <div className="col-md-4">
-            <h3 className="footer-logo">EVMARKETPLAY.VN</h3>
+            <h3 className="footer-logo">EVMARKETPLACE.VN</h3>
             <p>Nền tảng mua bán xe điện hàng đầu Việt Nam</p>
           </div>
           <div className="col-md-4">
@@ -21,7 +21,7 @@ function Footer() {
           </div>
           <div className="col-md-4">
             <h4>Liên hệ</h4>
-            <p>Email: contact@evmarketplay.vn</p>
+            <p>Email: contact@evmarketplace.vn</p>
             <p>Hotline: 1900 xxxx</p>
           </div>
         </div>

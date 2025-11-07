@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useToast } from "../contexts/ToastContext";
 import apiService from "../services/apiService";
 import "./UserManagement.css";
 
@@ -6,22 +7,28 @@ function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userError, setUserError] = useState("");
+  const { showToast } = useToast();
 
   useEffect(() => {
     setLoadingUsers(true);
     setUserError("");
     apiService.getAllUsers()
       .then(data => setUsers(data))
-      .catch(err => setUserError(err.message))
+      .catch(err => {
+        const message = err.message || "Không thể tải danh sách người dùng.";
+        setUserError(message);
+        showToast(message, "error");
+      })
       .finally(() => setLoadingUsers(false));
-  }, []);
+  }, [showToast]);
 
   const handleDisableUser = async (userId) => {
     try {
       await apiService.disableUser(userId);
       setUsers(users => users.map(u => u.userID === userId ? { ...u, status: "Disabled" } : u));
+      showToast("Đã khóa người dùng.", "success");
     } catch (err) {
-      alert("Khóa người dùng thất bại: " + err.message);
+      showToast("Khóa người dùng thất bại: " + err.message, "error");
     }
   };
 
@@ -29,8 +36,9 @@ function UserManagement() {
     try {
       await apiService.enableUser(userId);
       setUsers(users => users.map(u => u.userID === userId ? { ...u, status: "Active" } : u));
+      showToast("Đã mở khóa người dùng.", "success");
     } catch (err) {
-      alert("Mở khóa người dùng thất bại: " + err.message);
+      showToast("Mở khóa người dùng thất bại: " + err.message, "error");
     }
   };
 
