@@ -28,20 +28,88 @@ const apiService = {
   create_new_complaint: `${API_BASE_URL}/complaints`,
 
   //review controller
-  create_new_review: `${API_BASE_URL}/reviews`,
-  get_reviews_for_listing: (listingId) =>
-    `${API_BASE_URL}/reviews/listing/${listingId}`,
+  create_new_review: async function (reviewPayload) {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Vui lòng đăng nhập để đánh giá.");
 
-  // Seller feedback
-  getSellerFeedback: async function (sellerId) {
-    const res = await fetch(`${API_BASE_URL}/sellers/${sellerId}/feedback`, {
-      headers: { Accept: "*/*" },
-    });
-    if (res.status === 404) return null;
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(errorText || "Không thể tải thông tin người bán");
+    const userData = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("userData") || "{}");
+      } catch {
+        return {};
+      }
+    })();
+
+    const resolvedUserId = reviewPayload?.userId ?? userData?.userID;
+    const payload = {
+      ...reviewPayload,
+      userId: resolvedUserId != null ? Number(resolvedUserId) : resolvedUserId,
+    };
+
+    if (!payload.userId) {
+      throw new Error("Không xác định được người dùng. Vui lòng đăng nhập lại.");
     }
+
+    const res = await fetch(`${API_BASE_URL}/reviews`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể gửi đánh giá");
+    }
+
+    return await res.json();
+  },
+
+  get_reviews_for_listing: async function (listingId) {
+    const res = await fetch(`${API_BASE_URL}/reviews/listing/${listingId}`, {
+      headers: {
+        Accept: "*/*",
+      },
+    });
+
+    if (res.status === 204) {
+      return [];
+    }
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể tải danh sách đánh giá");
+    }
+
+    return await res.json();
+  },
+
+  getSellerFeedback: async function (sellerId) {
+    if (!sellerId) throw new Error("Thiếu mã người bán");
+
+    const token = this.getAuthToken();
+    const headers = {
+      Accept: "*/*",
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE_URL}/sellers/${sellerId}/feedback`, {
+      headers,
+    });
+
+    if (res.status === 204) return null;
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể tải đánh giá người bán");
+    }
+
     return await res.json();
   },
 
@@ -414,7 +482,7 @@ const apiService = {
 
   ///////////////////////////////////////////////////////////////////////////////
 
-  // API ĐẶT ĐƠN HÀNG
+  // API VỀ ĐƠN HÀNG
   // Tạo đơn hàng mới
   createOrder: async function (orderObj) {
     const token = this.getAuthToken();
@@ -430,6 +498,20 @@ const apiService = {
     if (!res.ok) throw new Error("Không thể tạo đơn hàng");
     return await res.json();
   },
+
+  // Lấy danh sách đơn hàng của user hiện tại
+  getMyOrders: async function () {
+    const token = this.getAuthToken();
+    const res = await fetch(`${API_BASE_URL}/orders`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
+    if (!res.ok) throw new Error("Không thể tải danh sách đơn hàng");
+    return await res.json();
+  },
+
   //////////////////////////////////////////////////////////////////////////////////
 
   // API GIAO DỊCH VÀ THANH TOÁN
@@ -595,7 +677,10 @@ const apiService = {
         Accept: "*/*",
       },
     });
-    if (!res.ok) throw new Error("Không thể tải danh sách giao dịch");
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || "Không thể tải danh sách giao dịch");
+    }
     return await res.json();
   },
 
@@ -700,7 +785,10 @@ const apiService = {
         },
       }
     );
-    if (!res.ok) throw new Error("Không thể tải lịch sử thanh toán");
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || "Không thể tải lịch sử thanh toán");
+    }
     return await res.json();
   },
 

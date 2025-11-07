@@ -13,7 +13,8 @@ import OrdersPayment from './pages/OrdersPayment'
 import AdminDashboard from './pages/AdminDashboard'
 import UserManagement from './pages/UserManagement'
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import MyListings from './pages/MyListings'; // Thêm dòng này
+import MyListings from './pages/MyListings';
+import MyOrders from './pages/MyOrders';
 import SellerProfile from './pages/SellerProfile';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/my-listings" element={<MyListings />} />
+          <Route path="/my-orders" element={<MyOrders />} />
           <Route path="/seller/:sellerId" element={<SellerProfile />} />
         </Routes>
       </Router>

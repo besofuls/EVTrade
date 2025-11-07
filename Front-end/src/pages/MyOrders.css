@@ -1,0 +1,271 @@
+.my-orders-container {
+    background-color: #f4f6f8;
+    min-height: calc(100vh - 60px); /* Chiều cao trừ đi header */
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.my-orders-content {
+    width: 100%;
+    max-width: 1200px;
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.my-orders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.my-orders-content h2 {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.filter-container {
+    display: flex;
+    gap: 1rem;
+}
+
+.status-filter {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 1rem;
+    color: #333; /* Thêm dòng này để đảm bảo màu chữ là màu tối */
+}
+
+.loading-text, .error-text, .no-orders-text {
+    text-align: center;
+    font-size: 1.1rem;
+    padding: 2rem;
+    color: #666;
+}
+
+.error-text {
+    color: #d9534f;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    /* Thay đổi overflow-y thành clip để tránh một số hành vi không mong muốn của trình duyệt,
+       nhưng vẫn cho phép các phần tử con có overflow: visible hoạt động */
+    overflow-y: clip;
+    padding-top: 1px; /* Thêm một khoảng đệm nhỏ để tránh lỗi render */
+    margin-top: -1px;
+}
+
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.orders-table th,
+.orders-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.orders-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    position: sticky; /* Thay đổi thành sticky */
+    top: 0;          /* Giữ header ở trên cùng khi cuộn */
+    z-index: 2;      /* Đảm bảo header nằm trên nội dung bảng nhưng dưới tooltip */
+}
+
+.orders-table tbody tr {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.orders-table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+.listing-cell {
+    position: relative;
+    overflow: visible; 
+}
+
+/* Xóa .listing-title-link và thay bằng .listing-title-button */
+.listing-title-button {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: inherit; /* Kế thừa font-size từ ô td */
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    white-space: normal; 
+    word-break: break-word;
+}
+
+.listing-title-button:hover {
+    text-decoration: underline;
+}
+
+/* Xóa toàn bộ các class CSS của tooltip */
+/* .listing-cell .tooltip, .listing-cell .tooltip::after, .listing-cell:hover .tooltip, .tooltip p, .tooltip p strong đã được xóa */
+
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    text-transform: capitalize;
+}
+
+.status-badge.status-pending { background-color: #f0ad4e; }
+.status-badge.status-completed { background-color: #5cb85c; }
+
+/* Thêm CSS cho Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+/* Thêm CSS cho hình ảnh trong modal */
+.modal-listing-image {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid #eee;
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #888;
+}
+
+.order-details-form p {
+    font-size: 1rem;
+    margin: 10px 0;
+    line-height: 1.5;
+}
+
+.order-details-form hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 1rem 0;
+}
+
+.order-details-form p strong {
+    color: #333;
+}
+
+.go-to-product-btn {
+    display: inline-block;
+    margin-top: 1.5rem;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.go-to-product-btn:hover {
+    background-color: #0056b3;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+    .my-orders-content {
+        padding: 1rem;
+    }
+
+    .orders-table thead {
+        display: none; /* Ẩn header của bảng */
+    }
+
+    .orders-table, .orders-table tbody, .orders-table tr, .orders-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .orders-table tr {
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 10px;
+    }
+
+    .orders-table td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+        border-bottom: none;
+    }
+
+    /* Căn lề trái cho ô chứa tiêu đề bài đăng trên mobile để dễ đọc hơn */
+    .orders-table td.listing-cell {
+        text-align: left;
+        padding-left: 10px; /* Reset padding cho ô này */
+    }
+
+    /* Ẩn label giả của ô tiêu đề vì nó không cần thiết khi đã căn lề trái */
+    .orders-table td.listing-cell::before {
+        display: none;
+    }
+
+    .orders-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: calc(50% - 20px);
+        padding-right: 10px;
+        font-weight: 600;
+        text-align: left;
+    }
+}

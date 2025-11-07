@@ -22,8 +22,8 @@ function UserProfile() {
   const [feedback, setFeedback] = useState({ type: "", message: "" });
   const [listings, setListings] = useState([]);
   const [sellerFeedback, setSellerFeedback] = useState(null);
-  const [sellerFeedbackError, setSellerFeedbackError] = useState("");
   const [sellerFeedbackLoading, setSellerFeedbackLoading] = useState(true);
+  const [sellerFeedbackError, setSellerFeedbackError] = useState("");
 
   const storedUser = useMemo(() => {
     try {
@@ -34,6 +34,24 @@ function UserProfile() {
   }, []);
 
   const userId = storedUser?.userID;
+
+  const sellerAverage = useMemo(
+    () => Number(sellerFeedback?.averageRating || 0),
+    [sellerFeedback]
+  );
+
+  const sellerTotalReviews = useMemo(
+    () => Number(sellerFeedback?.totalReviews || 0),
+    [sellerFeedback]
+  );
+
+  const highlightListings = useMemo(() => {
+    const source = sellerFeedback?.listings || [];
+    return source
+      .filter((listing) => Number(listing?.reviewCount) > 0)
+      .sort((a, b) => Number(b?.reviewCount || 0) - Number(a?.reviewCount || 0))
+      .slice(0, 3);
+  }, [sellerFeedback]);
 
   useEffect(() => {
     if (!userId) {
@@ -70,15 +88,15 @@ function UserProfile() {
       }
     }
 
-    async function fetchSellerFeedbackData() {
+    async function fetchSellerStats() {
       setSellerFeedbackLoading(true);
       setSellerFeedbackError("");
       try {
         const data = await apiService.getSellerFeedback(userId);
-        setSellerFeedback(data);
+        setSellerFeedback(data || null);
       } catch (err) {
         setSellerFeedback(null);
-        setSellerFeedbackError(err.message || "Không thể tải dữ liệu đánh giá.");
+        setSellerFeedbackError(err.message || "Không thể tải đánh giá của người bán.");
       } finally {
         setSellerFeedbackLoading(false);
       }
@@ -86,42 +104,8 @@ function UserProfile() {
 
     fetchProfile();
     fetchListings();
-    fetchSellerFeedbackData();
+    fetchSellerStats();
   }, [navigate, userId]);
-
-  const ratedListings = useMemo(() => {
-    if (!sellerFeedback?.listings) return [];
-    return sellerFeedback.listings
-      .filter((item) => (item.reviewCount || 0) > 0)
-      .map((item) => ({
-        ...item,
-        comments: Array.isArray(item.comments) ? item.comments : [],
-      }));
-  }, [sellerFeedback]);
-
-  const recentComments = useMemo(() => {
-    if (!ratedListings.length) return [];
-    return ratedListings
-      .flatMap((listing) =>
-        listing.comments.map((comment) => ({
-          ...comment,
-          listingId: listing.listingId,
-          listingTitle: listing.title,
-        }))
-      )
-      .sort((a, b) => {
-        const t1 = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const t2 = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return t2 - t1;
-      })
-      .slice(0, 5);
-  }, [ratedListings]);
-
-  const fmtRating = (value) =>
-    Number.isFinite(value) ? Number(value).toFixed(1) : "0.0";
-
-  const fmtDateTime = (value) =>
-    value ? new Date(value).toLocaleString("vi-VN") : "—";
 
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({ ...prev, [field]: event.target.value }));
@@ -238,6 +222,44 @@ function UserProfile() {
                 </section>
 
                 <section className="profile-section">
+                  <h2>Đánh giá từ người mua</h2>
+                  {sellerFeedbackLoading ? (
+                    <div className="profile-rating-loading">Đang tải thông tin đánh giá...</div>
+                  ) : sellerFeedbackError ? (
+                    <div className="profile-rating-error">{sellerFeedbackError}</div>
+                  ) : (
+                    <>
+                      <div className="profile-rating-card">
+                        <div className="profile-rating-score">
+                          <span className="score">{sellerAverage.toFixed(1)} ⭐</span>
+                          <span className="count">{sellerTotalReviews} lượt đánh giá</span>
+                        </div>
+                        <ul className="profile-rating-highlights">
+                          {highlightListings.length === 0 ? (
+                            <li className="empty">Chưa có bài đăng nào được đánh giá.</li>
+                          ) : (
+                            highlightListings.map((item) => (
+                              <li key={item.listingId || item.title}>
+                                <span className="listing-title">{item.title || "Bài đăng"}</span>
+                                <span className="listing-rating">{Number(item.averageRating || 0).toFixed(1)} ⭐</span>
+                                <span className="listing-count">({item.reviewCount} đánh giá)</span>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary profile-rating-link"
+                        onClick={() => navigate(`/seller/${userId}`)}
+                      >
+                        Xem chi tiết đánh giá
+                      </button>
+                    </>
+                  )}
+                </section>
+
+                <section className="profile-section">
                   <h2>Thông tin liên hệ</h2>
                   {editing ? (
                     <form className="profile-form" onSubmit={handleSubmit}>
@@ -343,118 +365,6 @@ function UserProfile() {
           </div>
         </div>
         <div className="profile-right">
-          <div className="profile-feedback-card">
-            <div className="profile-feedback-header">
-              <h2>Đánh giá từ người mua</h2>
-            </div>
-
-            {sellerFeedbackLoading ? (
-              <div className="profile-feedback-state">Đang tải dữ liệu đánh giá...</div>
-            ) : sellerFeedbackError ? (
-              <div className="profile-feedback-state error">{sellerFeedbackError}</div>
-            ) : !sellerFeedback ? (
-              <div className="profile-feedback-state">Chưa có dữ liệu đánh giá.</div>
-            ) : (
-              <>
-                <div className="profile-feedback-stats">
-                  <div className="stat">
-                    <span className="label">Đánh giá trung bình</span>
-                    <span className="value">
-                      {fmtRating(sellerFeedback.averageRating)} <span className="highlight">⭐</span>
-                    </span>
-                  </div>
-                  <div className="stat">
-                    <span className="label">Lượt đánh giá</span>
-                    <span className="value">{sellerFeedback.totalReviews || 0}</span>
-                  </div>
-                  <div className="stat">
-                    <span className="label">Bài đăng được đánh giá</span>
-                    <span className="value">{ratedListings.length}</span>
-                  </div>
-                </div>
-
-                <div className="profile-feedback-recent">
-                  <h3>Nhận xét gần đây</h3>
-                  {recentComments.length === 0 ? (
-                    <div className="profile-feedback-empty">Chưa có nhận xét từ người mua.</div>
-                  ) : (
-                    <ul className="profile-feedback-comment-list">
-                      {recentComments.map((comment) => (
-                        <li key={`${comment.reviewId}-${comment.listingId}`}>
-                          <div className="comment-top">
-                            <strong>{comment.buyerName || "Người mua"}</strong>
-                            {Number.isFinite(comment.rating) && (
-                              <span className="badge">{comment.rating} ⭐</span>
-                            )}
-                            <span className="time">{fmtDateTime(comment.createdAt)}</span>
-                          </div>
-                          <div className="comment-meta">{comment.listingTitle || "Bài đăng"}</div>
-                          {comment.comment && (
-                            <p className="comment-text">{comment.comment}</p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <div className="profile-feedback-listings">
-                  <h3>Chi tiết theo bài đăng</h3>
-                  {ratedListings.length === 0 ? (
-                    <div className="profile-feedback-empty">Bạn chưa có bài đăng nào được đánh giá.</div>
-                  ) : (
-                    <div className="profile-feedback-list">
-                      {ratedListings.map((listing) => (
-                        <div className="feedback-listing" key={listing.listingId}>
-                          <div className="listing-head">
-                            <div>
-                              <h4>{listing.title || "Bài đăng không tiêu đề"}</h4>
-                              <div className="listing-meta">
-                                <span>{listing.reviewCount || 0} lượt đánh giá</span>
-                                <span>• Trung bình {fmtRating(listing.averageRating)} ⭐</span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="listing-view"
-                              onClick={() => navigate(`/product/${listing.listingId}`)}
-                            >
-                              Xem bài đăng
-                            </button>
-                          </div>
-                          {(listing.comments || []).length === 0 ? (
-                            <div className="profile-feedback-empty small">Chưa có bình luận.</div>
-                          ) : (
-                            <ul className="listing-comment-list">
-                              {(listing.comments || []).slice(0, 3).map((comment) => (
-                                <li key={comment.reviewId}>
-                                  <div className="listing-comment-head">
-                                    <strong>{comment.buyerName || "Người mua"}</strong>
-                                    {Number.isFinite(comment.rating) && (
-                                      <span className="badge">{comment.rating} ⭐</span>
-                                    )}
-                                    <span className="time">{fmtDateTime(comment.createdAt)}</span>
-                                  </div>
-                                  {comment.comment && (
-                                    <p className="listing-comment-text">{comment.comment}</p>
-                                  )}
-                                </li>
-                              ))}
-                              {(listing.comments || []).length > 3 && (
-                                <li className="listing-comment-more">
-                                  +{(listing.comments || []).length - 3} bình luận khác
-                                </li>
-                              )}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
           <div className="profile-listings-card">
             <div className="profile-listings-header">
               <h2>Bài đăng gần đây</h2>

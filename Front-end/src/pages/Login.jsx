@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import backgroundVideo from "../assets/33vfxVliVS7mnZQ8o2LDBHzOqvL.mp4";
 import apiService from "../services/apiService";
+import { useToast } from "../contexts/ToastContext"; // Thêm import
 import "./Login.css";
 
 function Login() {
@@ -11,8 +12,8 @@ function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { showToast } = useToast(); // Khởi tạo hook
 
   useEffect(() => {
     // Load Facebook SDK
@@ -54,17 +55,16 @@ function Login() {
         }
       }, 100);
     } else {
-      setError("Đăng nhập thất bại");
+      showToast("Đăng nhập thất bại, không nhận được token.", "error");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
 
     // Validation
     if (!username || !password) {
-      setError("Vui lòng điền đầy đủ thông tin");
+      showToast("Vui lòng điền đầy đủ thông tin", "warning");
       return;
     }
 
@@ -76,10 +76,11 @@ function Login() {
         username,
         password,
       });
+      showToast("Đăng nhập thành công!", "success");
       processAuthSuccess(response);
     } catch (err) {
       console.error("Login error:", err);
-      setError("Tên đăng nhập hoặc mật khẩu không đúng");
+      showToast("Tên đăng nhập hoặc mật khẩu không đúng", "error");
     } finally {
       setLoading(false);
     }
@@ -97,10 +98,10 @@ function Login() {
             })
             .then(processAuthSuccess)
             .catch((err) => {
-              setError(err.message || "Đăng nhập Facebook thất bại");
+              showToast(err.message || "Đăng nhập Facebook thất bại", "error");
             });
         } else {
-          alert("Đăng nhập Facebook thất bại");
+          showToast("Đăng nhập Facebook thất bại", "error");
         }
       },
       { scope: "email" }
@@ -156,11 +157,7 @@ function Login() {
               <div className="login-content">
                 <h1 className="login-title">Đăng Nhập</h1>
 
-                {error && (
-                  <div className="alert alert-danger" role="alert">
-                    {error}
-                  </div>
-                )}
+                {/* Đã xóa thẻ div hiển thị lỗi tĩnh */}
 
                 <form className="login-form" onSubmit={handleSubmit}>
                   <div className="mb-4">
@@ -252,11 +249,11 @@ function Login() {
                         })
                         .then(processAuthSuccess)
                         .catch((err) => {
-                          setError(err.message || "Đăng nhập Google thất bại");
+                          showToast(err.message || "Đăng nhập Google thất bại", "error");
                         });
                     }}
                     onError={() => {
-                      setError("Đăng nhập Google thất bại");
+                      showToast("Đăng nhập Google thất bại", "error");
                     }}
                   />
                   {/* Facebook login */}

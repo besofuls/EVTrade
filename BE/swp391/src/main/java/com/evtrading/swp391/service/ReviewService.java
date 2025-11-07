@@ -26,11 +26,7 @@ public class ReviewService {
     private final OrderRepository orderRepository;
     private final ProfileRepository profileRepository;
 
-    public ReviewService(ReviewRepository reviewRepository,
-                         UserRepository userRepository,
-                         ListingRepository listingRepository,
-                         OrderRepository orderRepository,
-                         ProfileRepository profileRepository) {
+    public ReviewService(ReviewRepository reviewRepository, UserRepository userRepository, ListingRepository listingRepository, OrderRepository orderRepository, ProfileRepository profileRepository) {
         this.reviewRepository = reviewRepository;
         this.userRepository = userRepository;
         this.listingRepository = listingRepository;

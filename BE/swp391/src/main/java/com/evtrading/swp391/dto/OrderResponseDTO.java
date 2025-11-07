@@ -8,6 +8,7 @@ public class OrderResponseDTO {
     private Integer buyerId;
     private Integer sellerId;
     private Integer listingId;
+    private String listingTitle;
     private Integer quantity;
     private BigDecimal price;
     private BigDecimal totalAmount;
@@ -24,6 +25,8 @@ public class OrderResponseDTO {
     public void setSellerId(Integer sellerId) { this.sellerId = sellerId; }
     public Integer getListingId() { return listingId; }
     public void setListingId(Integer listingId) { this.listingId = listingId; }
+    public String getListingTitle() { return listingTitle; }
+    public void setListingTitle(String listingTitle) { this.listingTitle = listingTitle; }
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public BigDecimal getPrice() { return price; }

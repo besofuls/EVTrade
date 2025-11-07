@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import defaultImage from "../assets/VinFast_VF5_Plus.jpg";
 import Header from "../components/Header";
 import apiService from "../services/apiService";
+import { useToast } from "../contexts/ToastContext"; // Thêm import useToast
 import "./ProductDetail.css";
 
 function ProductDetail() {
@@ -24,21 +25,19 @@ function ProductDetail() {
   const [commentText, setCommentText] = useState("");
   const [commentRating, setCommentRating] = useState(5);
   const [commentLoading, setCommentLoading] = useState(false);
+  const [sellerFeedback, setSellerFeedback] = useState(null);
+  const [sellerRatingLoading, setSellerRatingLoading] = useState(false);
 
   // State mới cho gallery ảnh
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   // State mới cho zoom ảnh
   const [isZoomed, setIsZoomed] = useState(false);
 
-  // Seller feedback state
-  const [sellerFeedback, setSellerFeedback] = useState(null);
-  const [sellerFeedbackLoading, setSellerFeedbackLoading] = useState(false);
-  const [sellerFeedbackError, setSellerFeedbackError] = useState("");
+  const { showToast } = useToast(); // Khởi tạo hook toast
 
-  // Feedback states
-  const [topMessage, setTopMessage] = useState({ text: "", type: "" });
-  const [commentFeedback, setCommentFeedback] = useState({ text: "", type: "" });
-  const [complaintFeedback, setComplaintFeedback] = useState({ text: "", type: "" });
+  // State cho modal khiếu nại
+  const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
+  const [complaintReason, setComplaintReason] = useState("");
 
   const fetchDetail = async () => {
     try {
@@ -70,7 +69,8 @@ function ProductDetail() {
 
   const fetchComments = async () => {
     try {
-      const data = await apiService.getListingComments(id);
+      // Đổi tên hàm cho đúng với apiService
+      const data = await apiService.get_reviews_for_listing(id);
       setComments(Array.isArray(data) ? data : []);
     } catch {
       setComments([]);
@@ -87,40 +87,112 @@ function ProductDetail() {
   };
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchDetail(), fetchComments(), fetchFollowing()]);
+    const loadData = async () => {
+      setLoading(true);
+      // Chuyển sang gọi tuần tự để đảm bảo dữ liệu được tải đúng thứ tự
+      await fetchDetail();
+      await fetchComments();
+      await fetchFollowing();
+      setLoading(false); // Chỉ tắt loading sau khi tất cả đã hoàn thành
+    };
+    loadData();
   }, [id]);
 
+  const sellerProfileId = useMemo(() => {
+    const seller = item?.seller;
+    if (!seller) return null;
+    return seller.id ?? seller.userId ?? seller.userID ?? seller.user?.id ?? null;
+  }, [item]);
+
   useEffect(() => {
-    const sellerId = item?.seller?.id;
-    if (!sellerId) return;
+    let cancelled = false;
+    if (!sellerProfileId) {
+      setSellerFeedback(null);
+      return () => {
+        cancelled = true;
+      };
+    }
 
-    let active = true;
-    setSellerFeedbackLoading(true);
-    setSellerFeedbackError("");
+    const loadSellerFeedback = async () => {
+      setSellerRatingLoading(true);
+      try {
+        const data = await apiService.getSellerFeedback(sellerProfileId);
+        if (!cancelled) {
+          setSellerFeedback(data || null);
+        }
+      } catch {
+        if (!cancelled) {
+          setSellerFeedback(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setSellerRatingLoading(false);
+        }
+      }
+    };
 
-    apiService
-      .getSellerFeedback(sellerId)
-      .then((data) => {
-        if (!active) return;
-        setSellerFeedback(data);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setSellerFeedback(null);
-        setSellerFeedbackError(err.message || "Không thể tải đánh giá người bán.");
-      })
-      .finally(() => {
-        if (active) setSellerFeedbackLoading(false);
-      });
+    loadSellerFeedback();
 
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, [item?.seller?.id]);
+  }, [sellerProfileId]);
 
   const fmtPrice = (v) => v == null ? "—" : new Intl.NumberFormat("vi-VN").format(Number(v)) + " đ";
   const fmtDate = (s) => s ? new Date(s).toLocaleDateString("vi-VN") : "—";
+
+  const ratingStats = useMemo(() => {
+    const ratedComments = comments.filter((c) => Number.isFinite(Number(c?.rating)));
+    const count = ratedComments.length;
+    const sum = ratedComments.reduce((acc, c) => acc + Number(c.rating || 0), 0);
+    const fallbackAvg = Number(item?.averageRating || 0);
+
+    if (count > 0) {
+      const average = sum / count;
+      return {
+        average,
+        count,
+        hasReviews: true,
+        label: `${average.toFixed(1)} ⭐ (${count} đánh giá)`
+      };
+    }
+
+    if (fallbackAvg > 0) {
+      return {
+        average: fallbackAvg,
+        count: 0,
+        hasReviews: true,
+        label: `${fallbackAvg.toFixed(1)} ⭐`
+      };
+    }
+
+    if (sellerRatingLoading) {
+      return {
+        average: 0,
+        count: 0,
+        hasReviews: false,
+        label: "Đang tải đánh giá..."
+      };
+    }
+
+    const sellerCount = Number(sellerFeedback?.totalReviews || 0);
+    const sellerAvg = Number(sellerFeedback?.averageRating || 0);
+    if (sellerCount > 0 && sellerAvg > 0) {
+      return {
+        average: sellerAvg,
+        count: sellerCount,
+        hasReviews: true,
+        label: `Người bán: ${sellerAvg.toFixed(1)} ⭐ (${sellerCount} đánh giá)`
+      };
+    }
+
+    return {
+      average: 0,
+      count: 0,
+      hasReviews: false,
+      label: "Chưa có đánh giá"
+    };
+  }, [comments, item?.averageRating, sellerFeedback, sellerRatingLoading]);
 
   // Hàm xử lý chuyển ảnh
   const handleImageNavigation = (direction) => {
@@ -138,17 +210,16 @@ function ProductDetail() {
 
   const handleOrder = async () => {
     setOrderLoading(true);
-    setTopMessage({ text: "", type: "" });
     if (!apiService.getAuthToken()) {
       navigate("/login");
       return;
     }
     try {
       await apiService.createOrder({ listingId: Number(id), quantity: 1 });
-      setTopMessage({ text: "Đặt đơn hàng thành công!", type: "success" });
-      fetchDetail(); // Tải lại để cập nhật trạng thái
+      showToast("Đặt đơn hàng thành công!", "success");
+      fetchDetail();
     } catch (err) {
-      setTopMessage({ text: err.message || "Đặt đơn hàng thất bại.", type: "error" });
+      showToast(err.message || "Đặt đơn hàng thất bại.", "error");
     } finally {
       setOrderLoading(false);
     }
@@ -157,50 +228,101 @@ function ProductDetail() {
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     setCommentLoading(true);
-    setCommentFeedback({ text: "", type: "" });
     try {
-      await apiService.createListingComment(id, { text: commentText, rating: commentRating });
-      setCommentFeedback({ text: "Đã gửi bình luận!", type: "success" });
+      if (!apiService.isAuthenticated()) {
+        showToast("Vui lòng đăng nhập để gửi đánh giá.", "warning");
+        navigate("/login");
+        return;
+      }
+
+      // Gửi đánh giá cho bài đăng hiện tại
+      await apiService.create_new_review({
+        listingId: Number(id),
+        comment: commentText,
+        rating: commentRating,
+      });
+      showToast("Đã gửi bình luận!", "success");
       setCommentText("");
       setCommentRating(5);
-      fetchComments();
+      await fetchComments();
     } catch (err) {
-      setCommentFeedback({ text: "Gửi bình luận thất bại.", type: "error" });
+      showToast(err.message || "Gửi bình luận thất bại.", "error");
     } finally {
       setCommentLoading(false);
     }
   };
 
+  const seller = item?.seller ?? {};
+  const sellerId = sellerProfileId;
+
+  const handleSellerProfile = () => {
+    if (sellerId) {
+      navigate(`/seller/${sellerId}`);
+    }
+  };
+
+  const scrollToComments = () => {
+    const el = document.getElementById("pd-comments");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   const handleFollow = async () => {
+    if (!apiService.isAuthenticated()) {
+      showToast("Vui lòng đăng nhập để theo dõi.", "warning");
+      navigate("/login");
+      return;
+    }
     setFollowLoading(true);
     try {
       if (isFollowing) {
         await apiService.unfollowListing(id);
-        setIsFollowing(false);
+        showToast("Đã bỏ theo dõi bài đăng.", "info");
+        setIsFollowing(false); // Cập nhật state sau khi thành công
       } else {
         await apiService.followListing(id);
-        setIsFollowing(true);
+        showToast("Đã theo dõi bài đăng!", "success");
+        setIsFollowing(true); // Cập nhật state sau khi thành công
       }
-    } catch {}
-    setFollowLoading(false);
-  };
-
-  const handleComplaint = async () => {
-    setComplaintLoading(true);
-    setComplaintFeedback({ text: "", type: "" });
-    try {
-      await apiService.createComplaint({ listingId: id, reason: "Khiếu nại bài đăng này" });
-      setComplaintFeedback({ text: "Đã gửi khiếu nại thành công.", type: "success" });
     } catch (err) {
-      setComplaintFeedback({ text: "Gửi khiếu nại thất bại.", type: "error" });
+      // Hiển thị lỗi từ backend nếu có, nếu không thì hiển thị lỗi mặc định
+      const errorMessage = await err.text().catch(() => err.message || "Thao tác thất bại.");
+      showToast(errorMessage, "error");
+      
+      // Đồng bộ lại trạng thái với server khi có lỗi
+      fetchFollowing(); 
     } finally {
-      setComplaintLoading(false);
+      setFollowLoading(false);
     }
   };
 
-  const handleSellerProfileNav = () => {
-    if (item?.seller?.id) {
-      navigate(`/seller/${item.seller.id}`);
+  // Mở modal khiếu nại
+  const openComplaintModal = () => {
+    if (!apiService.isAuthenticated()) {
+      showToast("Vui lòng đăng nhập để khiếu nại.", "warning");
+      navigate("/login");
+      return;
+    }
+    setIsComplaintModalOpen(true);
+  };
+
+  // Gửi khiếu nại từ modal
+  const handleComplaintSubmit = async () => {
+    if (!complaintReason.trim()) {
+      showToast("Lý do khiếu nại không được để trống.", "error");
+      return;
+    }
+    setComplaintLoading(true);
+    try {
+      await apiService.createComplaint({ listingId: id, content: complaintReason });
+      showToast("Đã gửi khiếu nại thành công.", "success");
+      setIsComplaintModalOpen(false); // Đóng modal sau khi gửi
+      setComplaintReason(""); // Reset nội dung
+    } catch (err) {
+      showToast(err.message || "Gửi khiếu nại thất bại.", "error");
+    } finally {
+      setComplaintLoading(false);
     }
   };
 
@@ -209,7 +331,6 @@ function ProductDetail() {
   if (!item) return <div className="pd-empty">Không tìm thấy sản phẩm.</div>;
 
   const product = item.product ?? {};
-  const seller = item.seller ?? {};
   const hideOrderBtn = ["PROCESSING", "SOLD"].includes(String(item.status).toUpperCase());
   const imageList = item.images?.length ? item.images : [{ url: item.display, isPrimary: true }];
 
@@ -220,10 +341,6 @@ function ProductDetail() {
         <div className="pd-toolbar">
           <button className="pd-back" onClick={() => navigate(-1)}>← Quay lại</button>
         </div>
-
-        {topMessage.text && (
-          <div className={`pd-top-message ${topMessage.type}`}>{topMessage.text}</div>
-        )}
 
         <div className="pd-main-card">
           {/* Cột trái: Hình ảnh */}
@@ -270,44 +387,39 @@ function ProductDetail() {
 
             <div className="pd-price">{fmtPrice(item.price)}</div>
 
-            <div
-              className={`pd-seller-card ${seller?.id ? "interactive" : ""}`}
-              role={seller?.id ? "button" : undefined}
-              tabIndex={seller?.id ? 0 : -1}
-              onClick={handleSellerProfileNav}
-              onKeyDown={(e) => {
-                if (!seller?.id) return;
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleSellerProfileNav();
-                }
-              }}
-            >
-              <div className="pd-seller-avatar">👤</div>
+            <div className="pd-seller-card">
+              <button
+                type="button"
+                className="pd-seller-avatar"
+                onClick={handleSellerProfile}
+                disabled={!sellerId}
+              >
+                👤
+              </button>
               <div className="pd-seller-info">
-                <div className="pd-seller-name">{seller.username || "—"}</div>
-                <div className="pd-seller-meta">
-                  <span>Đăng ngày: {fmtDate(item.createdAt)}</span>
-                </div>
-                <div className="pd-seller-rating">
-                  {sellerFeedbackLoading && <span>Đang tải đánh giá...</span>}
-                  {!sellerFeedbackLoading && sellerFeedbackError && (
-                    <span className="pd-seller-rating-error">Không tải được đánh giá</span>
-                  )}
-                  {!sellerFeedbackLoading && !sellerFeedbackError && sellerFeedback && (sellerFeedback.totalReviews || 0) > 0 && (
-                    <span>
-                      {Number(sellerFeedback.averageRating || 0).toFixed(1)} ⭐
-                      <span className="pd-seller-rating-count"> ({sellerFeedback.totalReviews} đánh giá)</span>
-                    </span>
-                  )}
-                  {!sellerFeedbackLoading && !sellerFeedbackError && (!sellerFeedback || (sellerFeedback.totalReviews || 0) === 0) && (
-                    <span className="pd-seller-rating-empty">Chưa có đánh giá</span>
-                  )}
-                </div>
-                {seller?.id && (
-                  <div className="pd-seller-link">Xem hồ sơ người bán →</div>
-                )}
+                <button
+                  type="button"
+                  className="pd-seller-name"
+                  onClick={handleSellerProfile}
+                  disabled={!sellerId}
+                >
+                  {seller.username || "—"}
+                </button>
+                <div className="pd-seller-meta">Đăng ngày: {fmtDate(item.createdAt)}</div>
+                <button
+                  type="button"
+                  className={`pd-seller-rating ${ratingStats.hasReviews ? "" : "pd-seller-rating-empty"}`.trim()}
+                  onClick={scrollToComments}
+                  disabled={!ratingStats.hasReviews}
+                >
+                  {ratingStats.label}
+                </button>
               </div>
+              {sellerId && (
+                <button type="button" className="pd-btn tertiary" onClick={handleSellerProfile}>
+                  Xem hồ sơ
+                </button>
+              )}
             </div>
 
             <div className="pd-actions">
@@ -324,13 +436,10 @@ function ProductDetail() {
                 >
                   {isFollowing ? "❤️ Đã theo dõi" : "🤍 Theo dõi"}
                 </button>
-                <button className="pd-btn complaint" onClick={handleComplaint} disabled={complaintLoading}>
+                <button className="pd-btn complaint" onClick={openComplaintModal} disabled={complaintLoading}>
                   🚩 Khiếu nại
                 </button>
               </div>
-              {complaintFeedback.text && (
-                <div className={`pd-feedback ${complaintFeedback.type}`}>{complaintFeedback.text}</div>
-              )}
             </div>
           </div>
         </div>
@@ -352,8 +461,13 @@ function ProductDetail() {
             </ul>
           </div>
 
-          <div className="pd-details-card">
-            <h3>Bình luận & Đánh giá</h3>
+            <div className="pd-details-card" id="pd-comments">
+            <div className="pd-comments-header">
+              <h3>Bình luận & Đánh giá</h3>
+              <span className={`pd-comments-summary ${ratingStats.hasReviews ? "" : "pd-comments-summary-empty"}`.trim()}>
+                {ratingStats.label}
+              </span>
+            </div>
             <form className="pd-comment-form" onSubmit={handleCommentSubmit}>
               <textarea
                 value={commentText}
@@ -374,9 +488,6 @@ function ProductDetail() {
                 </button>
               </div>
             </form>
-            {commentFeedback.text && (
-              <div className={`pd-feedback ${commentFeedback.type}`}>{commentFeedback.text}</div>
-            )}
 
             <div className="pd-comments-list">
               {comments.length === 0 ? (
@@ -391,11 +502,31 @@ function ProductDetail() {
                     <p className="pd-comment-text">{cmt.text}</p>
                     <span className="pd-comment-date">{fmtDate(cmt.createdAt)}</span>
                   </div>
-                ))
-              )}
+                )))
+              }
             </div>
           </div>
         </div>
+
+        {/* Modal Khiếu nại */}
+        {isComplaintModalOpen && (
+          <div className="pd-complaint-modal-overlay">
+            <div className="pd-complaint-modal">
+              <h3>Gửi khiếu nại về bài đăng</h3>
+              <textarea
+                placeholder="Vui lòng nhập lý do khiếu nại của bạn..."
+                value={complaintReason}
+                onChange={(e) => setComplaintReason(e.target.value)}
+              />
+              <div className="pd-complaint-modal-actions">
+                <button className="pd-btn" onClick={() => setIsComplaintModalOpen(false)}>Hủy</button>
+                <button className="pd-btn primary" onClick={handleComplaintSubmit} disabled={complaintLoading}>
+                  {complaintLoading ? "Đang gửi..." : "Gửi"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal Zoom Ảnh */}
         {isZoomed && (
