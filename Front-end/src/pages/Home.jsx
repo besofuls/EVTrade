@@ -18,7 +18,7 @@ function Home() {
         <div className="container">
           <div className="row align-items-center justify-content-center">
             <div className="col-md-10 text-center">
-              <h1 className="hero-title" onClick={() => navigate('/')}>EVMARKETPLAY.VN</h1>
+              <h1 className="hero-title" onClick={() => navigate('/')}>EVMARKETPLACE.VN</h1>
               <p className="hero-subtitle">Nền tảng mua bán xe điện hàng đầu Việt Nam</p>
               <p className="hero-description">
                 Khám phá và sở hữu những mẫu xe điện hiện đại, thân thiện với môi trường. Tương lai xanh bắt đầu từ đây.

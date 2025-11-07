@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '../contexts/ToastContext'
 import apiService from '../services/apiService'
 import './Header.css'
 
@@ -8,6 +9,9 @@ function Header() {
   const [searchQuery, setSearchQuery] = useState('')
   const [user, setUser] = useState(null)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const { showToast } = useToast()
 
   useEffect(() => {
     const checkUser = () => {
@@ -58,29 +62,34 @@ function Header() {
     }
   }
 
-  const handleLogout = async () => {
-    if (window.confirm('Bạn có chắc muốn đăng xuất?')) {
-      try {
-        // Gọi API logout
-        await apiService.logout()
-        
-        // Cập nhật UI
-        setUser(null)
-        setShowUserMenu(false)
-        
-        // Trigger storage event để các component khác cập nhật
-        window.dispatchEvent(new Event('storage'))
-        
-        alert('Đăng xuất thành công!')
-        navigate('/')
-      } catch (error) {
-        console.error('Logout error:', error)
-        // Vẫn clear UI và redirect dù API lỗi
-        setUser(null)
-        setShowUserMenu(false)
-        alert('Đã đăng xuất!')
-        navigate('/')
-      }
+  const openLogoutConfirm = () => {
+    setShowUserMenu(false)
+    setShowLogoutConfirm(true)
+  }
+
+  const closeLogoutConfirm = () => {
+    if (loggingOut) return
+    setShowLogoutConfirm(false)
+  }
+
+  const performLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await apiService.logout()
+      setUser(null)
+      window.dispatchEvent(new Event('storage'))
+      showToast('Đăng xuất thành công!', 'success')
+      navigate('/')
+    } catch (error) {
+      console.error('Logout error:', error)
+      setUser(null)
+      showToast('Đã đăng xuất!', 'info')
+      navigate('/')
+    } finally {
+      setShowUserMenu(false)
+      setShowLogoutConfirm(false)
+      setLoggingOut(false)
     }
   }
 
@@ -89,7 +98,7 @@ function Header() {
       <div className="container-fluid">
         <div className="header-content">
           {/* Logo/Site Name */}
-          <h1 className="site-logo" onClick={() => navigate('/')}>EVMARKETPLAY.VN</h1>
+          <h1 className="site-logo" onClick={() => navigate('/')}>EVMARKETPLACE</h1>
 
           {/* Menu Navigation */}
           <nav className="main-nav">
@@ -150,6 +159,9 @@ function Header() {
                     <div className="dropdown-item" onClick={() => { navigate('/orders-payment'); setShowUserMenu(false); }}>
                       <span>💳</span> Thanh toán đơn hàng
                     </div>
+                    <div className="dropdown-item" onClick={() => { navigate('/my-complaints'); setShowUserMenu(false); }}>
+                      <span>⚠️</span> Khiếu nại của tôi
+                    </div>
                     {/* Thêm nút chuyển qua admin nếu là admin hoặc moderator */}
                     {(user?.roles?.includes("ADMIN") || user?.roles?.includes("MODERATOR")) && (
                       <div className="dropdown-item" onClick={() => { navigate('/admin'); setShowUserMenu(false); }}>
@@ -157,7 +169,7 @@ function Header() {
                       </div>
                     )}
                     <div className="dropdown-divider"></div>
-                    <div className="dropdown-item" onClick={handleLogout}>
+                    <div className="dropdown-item" onClick={openLogoutConfirm}>
                       <span>🚪</span> Đăng Xuất
                     </div>
                   </div>
@@ -167,6 +179,30 @@ function Header() {
           </div>
         </div>
       </div>
+      {showLogoutConfirm && (
+        <div className="logout-modal-overlay" onClick={closeLogoutConfirm}>
+          <div className="logout-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Đăng xuất</h3>
+            <p>Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?</p>
+            <div className="logout-modal-actions">
+              <button
+                className="btn-confirm-logout"
+                onClick={performLogout}
+                disabled={loggingOut}
+              >
+                {loggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
+              </button>
+              <button
+                className="btn-cancel-logout"
+                onClick={closeLogoutConfirm}
+                disabled={loggingOut}
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }

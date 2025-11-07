@@ -15,6 +15,7 @@ import UserManagement from './pages/UserManagement'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import MyListings from './pages/MyListings';
 import MyOrders from './pages/MyOrders';
+import MyComplaints from './pages/MyComplaints';
 import SellerProfile from './pages/SellerProfile';
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/my-listings" element={<MyListings />} />
           <Route path="/my-orders" element={<MyOrders />} />
+          <Route path="/my-complaints" element={<MyComplaints />} />
           <Route path="/seller/:sellerId" element={<SellerProfile />} />
         </Routes>
       </Router>

@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
+import { useToast } from "../contexts/ToastContext";
 import apiService from "../services/apiService";
 import "./SellCars.css";
+
+const formatCurrency = (value) => {
+  if (!value) return "";
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return "";
+  return new Intl.NumberFormat("vi-VN").format(numeric);
+};
+
+const normalizeCurrencyInput = (value) => {
+  if (!value) return "";
+  return value.toString().replace(/[^\d]/g, "");
+};
 
 function SellCars() {
   const navigate = useNavigate();
@@ -12,6 +25,7 @@ function SellCars() {
   const [error, setError] = useState("");
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const { showToast } = useToast();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -44,7 +58,9 @@ function SellCars() {
       const token = apiService.getAuthToken();
       if (!token || apiService.isTokenExpired()) {
         apiService.clearAuthToken();
+        showToast("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "warning");
         navigate("/login");
+        setLoading(false);
         return;
       }
       try {
@@ -55,31 +71,42 @@ function SellCars() {
         const categoriesData = await apiService.getCategories();
         setCategories(categoriesData);
       } catch (err) {
-        setError(err.message);
+        const message = err.message || "Không thể tải dữ liệu cần thiết.";
+        setError(message);
+        showToast(message, "error");
       } finally {
         setLoading(false);
       }
     }
     fetchData();
-  }, [navigate]);
+  }, [navigate, showToast]);
 
   // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Nếu thay đổi trường "price" thì cập nhật luôn các trường bên dưới
     if (name === "price") {
+      const normalized = normalizeCurrencyInput(value);
       setFormData((prev) => ({
         ...prev,
-        price: value,
-        vehiclePrice: value,
-        batteryPrice: value,
+        price: normalized,
+        vehiclePrice: normalized,
+        batteryPrice: normalized,
       }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      return;
     }
+    if (name === "vehiclePrice" || name === "batteryPrice") {
+      const normalized = normalizeCurrencyInput(value);
+      setFormData((prev) => ({
+        ...prev,
+        [name]: normalized,
+      }));
+      return;
+    }
+    // Nếu thay đổi trường "price" thì cập nhật luôn các trường bên dưới
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   // Handle file upload
@@ -112,7 +139,9 @@ function SellCars() {
     const token = apiService.getAuthToken();
     if (!token || apiService.isTokenExpired()) {
       apiService.clearAuthToken();
+      showToast("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "warning");
       navigate("/login");
+      setSubmitting(false);
       return;
     }
     try {
@@ -148,10 +177,11 @@ function SellCars() {
       // Gọi apiService để gửi bài đăng
       await apiService.createProductPost(listingObj, formData.images);
 
-      alert("Đã đăng tin thành công! Tin của bạn đang chờ duyệt.");
+      showToast("Đã đăng tin thành công! Tin của bạn đang chờ duyệt.", "success");
       navigate("/buy");
     } catch (err) {
       setError(err.message);
+      showToast(err.message || "Đăng tin thất bại. Vui lòng thử lại.", "error");
     } finally {
       setSubmitting(false); // Mở lại nút sau khi gửi xong
     }
@@ -202,12 +232,11 @@ function SellCars() {
                 <div className="form-group">
                   <label className="form-label required">Giá bán (VNĐ)</label>
                   <input
-                    type="number"
+                    type="text"
                     name="price"
-                    value={formData.price}
+                    value={formatCurrency(formData.price)}
                     onChange={handleChange}
                     required
-                    min="0"
                     className="form-control"
                     placeholder="VD: 50000000"
                   />
@@ -326,12 +355,11 @@ function SellCars() {
                           Giá xe (VNĐ)
                         </label>
                         <input
-                          type="number"
+                          type="text"
                           name="vehiclePrice"
-                          value={formData.vehiclePrice}
+                          value={formatCurrency(formData.vehiclePrice)}
                           readOnly
                           required
-                          min="0"
                           className="form-control"
                           placeholder="VD: 40000000"
                         />
@@ -409,12 +437,11 @@ function SellCars() {
                           Giá pin (VNĐ)
                         </label>
                         <input
-                          type="number"
+                          type="text"
                           name="batteryPrice"
-                          value={formData.batteryPrice}
+                          value={formatCurrency(formData.batteryPrice)}
                           readOnly
                           required
-                          min="0"
                           className="form-control"
                           placeholder="VD: 2500"
                         />

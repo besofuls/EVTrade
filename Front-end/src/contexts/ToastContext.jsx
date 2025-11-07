@@ -6,16 +6,30 @@ const ToastContext = createContext();
 
 export const useToast = () => useContext(ToastContext);
 
-const Toast = ({ message, type, onClose }) => {
+const Toast = ({ message, type, onRemove, duration = 5000 }) => {
+  const [isLeaving, setIsLeaving] = React.useState(false);
+
+  const startClose = React.useCallback(() => {
+    setIsLeaving(true);
+  }, []);
+
   React.useEffect(() => {
-    const timer = setTimeout(onClose, 5000); // Tự động đóng sau 5 giây
+    if (!isLeaving) return;
+    const timer = setTimeout(onRemove, 280);
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [isLeaving, onRemove]);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      startClose();
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [duration, startClose]);
 
   return (
-    <div className={`toast toast-${type}`}>
-      {message}
-      <button onClick={onClose} className="toast-close-btn">&times;</button>
+    <div className={`ev-toast ev-toast-${type} ${isLeaving ? 'ev-toast-leave' : ''}`}>
+      <span className="ev-toast-message">{message}</span>
+      <button onClick={startClose} className="ev-toast-close-btn" aria-label="Đóng thông báo">&times;</button>
     </div>
   );
 };
@@ -24,25 +38,25 @@ export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback((message, type = 'info') => {
-    const id = Date.now();
+    const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type }]);
   }, []);
 
-  const removeToast = id => {
+  const removeToast = useCallback((id) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
-  };
+  }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {ReactDOM.createPortal(
-        <div className="toast-container">
+        <div className="ev-toast-container">
           {toasts.map(toast => (
             <Toast
               key={toast.id}
               message={toast.message}
               type={toast.type}
-              onClose={() => removeToast(toast.id)}
+              onRemove={() => removeToast(toast.id)}
             />
           ))}
         </div>,
