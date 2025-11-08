@@ -17,6 +17,7 @@ public interface ListingRepository extends JpaRepository<Listing, Integer>, JpaS
     Page<Listing> findByBrandBrandID(Integer brandId, Pageable pageable);
     Page<Listing> findByCategoryCategoryIDAndStatus(Integer categoryId, String status, Pageable pageable);
     Page<Listing> findByBrandBrandIDAndStatus(Integer brandId, String status, Pageable pageable);
+    java.util.List<Listing> findByStatusAndExpiryDateBefore(String status, java.util.Date date);
     
     // Count titles (case-insensitive) to detect duplicate titles
     long countByTitleIgnoreCase(String title);

@@ -38,7 +38,7 @@ function AdminSidebar({ activeTab, setActiveTab }) {
         <li className={activeTab === "orders" ? "active" : ""} onClick={() => setActiveTab("orders")}>Giao dịch</li>
   <li className={activeTab === "complaints" ? "active" : ""} onClick={() => setActiveTab("complaints")}>Khiếu nại</li>
         <li className={activeTab === "contracts" ? "active" : ""} onClick={() => setActiveTab("contracts")}>Hợp đồng</li>
-        <li className={activeTab === "stats" ? "active" : ""} onClick={() => setActiveTab("stats")}>Thống kê</li>
+  <li className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>Cấu hình</li>
         <li onClick={() => { localStorage.clear(); navigate("/"); }}>Đăng xuất</li>
       </ul>
       <button

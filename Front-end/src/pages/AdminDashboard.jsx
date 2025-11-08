@@ -19,6 +19,10 @@ function AdminDashboard() {
     transactionCount: 0,
     complaintCount: 0,
   });
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configError, setConfigError] = useState("");
+  const [extendPriceInput, setExtendPriceInput] = useState(5000);
+  const [configSaving, setConfigSaving] = useState(false);
   const { showToast } = useToast();
 
   const extractArray = (data) => {
@@ -102,11 +106,54 @@ function AdminDashboard() {
     }
   }, [showToast]);
 
+  const loadExtendConfig = useCallback(async () => {
+    setConfigLoading(true);
+    setConfigError("");
+    try {
+      const config = await apiService.getExtendConfig();
+      const price = Number(config.EXTEND_PRICE_PER_DAY) || 5000;
+      setExtendPriceInput(price);
+    } catch (error) {
+      const message = error?.message || "Không thể tải cấu hình hệ thống.";
+      setConfigError(message);
+      showToast(message, "error");
+    } finally {
+      setConfigLoading(false);
+    }
+  }, [showToast]);
+
+  const handleSaveExtendPrice = async () => {
+    if (!extendPriceInput || extendPriceInput <= 0) {
+      setConfigError("Giá gia hạn phải lớn hơn 0.");
+      return;
+    }
+
+    setConfigSaving(true);
+    setConfigError("");
+    try {
+      await apiService.updateExtendConfig(extendPriceInput);
+      showToast("Cập nhật giá gia hạn thành công.", "success");
+      await loadExtendConfig();
+    } catch (error) {
+      const message = error?.message || "Không thể cập nhật giá gia hạn.";
+      setConfigError(message);
+      showToast(message, "error");
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "overview") {
       loadStats();
     }
   }, [activeTab, loadStats]);
+
+  useEffect(() => {
+    if (activeTab === "settings") {
+      loadExtendConfig();
+    }
+  }, [activeTab, loadExtendConfig]);
 
   return (
     <div className="admin-dashboard-wrapper">
@@ -229,6 +276,44 @@ function AdminDashboard() {
               </table>
             </div>
           </>
+        )}
+        {activeTab === "settings" && (
+          <div className="admin-dashboard-section">
+            <h2>Cấu hình hệ thống</h2>
+            {configLoading ? (
+              <div className="admin-dashboard-hint">Đang tải cấu hình...</div>
+            ) : (
+              <div className="admin-config-card">
+                <label htmlFor="extend-price-input">Giá gia hạn mỗi ngày (VND)</label>
+                <input
+                  id="extend-price-input"
+                  type="number"
+                  min={1000}
+                  step={500}
+                  value={extendPriceInput}
+                  onChange={(e) => {
+                    setConfigError("");
+                    setExtendPriceInput(Number(e.target.value));
+                  }}
+                />
+                <small className="admin-config-hint">Giá mặc định là 5.000 VND/ngày nếu chưa cấu hình.</small>
+                <div className="admin-config-actions">
+                  <button
+                    className="btn-primary"
+                    onClick={handleSaveExtendPrice}
+                    disabled={configSaving || !extendPriceInput || extendPriceInput <= 0}
+                  >
+                    {configSaving ? "Đang lưu..." : "Lưu cấu hình"}
+                  </button>
+                </div>
+                {configError && (
+                  <div className="admin-dashboard-error" style={{ marginTop: 8 }}>
+                    {configError}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
         {/* Thêm các tab khác nếu cần */}
       </div>

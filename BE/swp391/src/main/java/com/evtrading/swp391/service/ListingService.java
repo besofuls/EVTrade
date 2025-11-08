@@ -66,6 +66,9 @@ public class ListingService {
     @Autowired
     private SystemConfigRepository systemConfigRepository; // Giả sử bạn có repo này
 
+    private static final int DEFAULT_FREE_LISTING_DAYS = 7;
+    private static final int DEFAULT_EXTEND_PRICE_PER_DAY = 5000;
+
     // Thêm các giá trị từ application.properties
     @Value("${vnpay.tmnCode}")
     private String vnpTmnCode;
@@ -114,6 +117,7 @@ public class ListingService {
         listing.setPrice(dto.getPrice());
         listing.setStatus("PENDING"); // Trạng thái mặc định khi tạo mới
         listing.setCreatedAt(new Date());
+    listing.setExtendedTimes(0);
 
         
 
@@ -163,6 +167,8 @@ public class ListingService {
     public ListingResponseDTO getListingById(Integer id) {
         Listing listing = listingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Listing not found with id: " + id));
+
+    listing = refreshListingStatus(listing);
 
         List<ListingImage> images = listingImageRepository.findByListingListingID(id);
 
@@ -276,6 +282,7 @@ public class ListingService {
     public Page<ListingResponseDTO> getListings(String status, Integer userId,
             Integer categoryId, Integer brandId,
             Pageable pageable, boolean isModerator) {
+        refreshExpiredListings();
         Page<Listing> listingsPage;
 
         // Nếu là admin/moderator xem bài đăng cụ thể theo status
@@ -342,9 +349,10 @@ public class ListingService {
         listing.setStartDate(new Date());
 
         // Lấy số ngày đăng bài miễn phí từ cấu hình hệ thống
-        int freeDays = systemConfigRepository.findByConfigKey("FREE_LISTING_DAYS")
-                .map(config -> Integer.parseInt(config.getConfigValue()))
-                .orElse(14); // Giá trị mặc định là 14 ngày nếu không có cấu hình
+    int freeDays = systemConfigRepository.findByConfigKey("FREE_LISTING_DAYS")
+        .map(config -> parsePositiveInt(config.getConfigValue()))
+        .filter(days -> days > 0)
+        .orElse(DEFAULT_FREE_LISTING_DAYS); // Giá trị mặc định là 7 ngày nếu không có cấu hình
 
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date());
@@ -399,10 +407,15 @@ public class ListingService {
             throw new RuntimeException("Bạn không có quyền gia hạn bài đăng này.");
         }
 
+        listing = refreshListingStatus(listing);
+
+        String status = listing.getStatus() == null ? "" : listing.getStatus().toUpperCase();
+        if (!"ACTIVE".equals(status) && !"EXPIRED".equals(status)) {
+            throw new RuntimeException("Chỉ bài đăng đang hoạt động hoặc đã hết hạn mới được gia hạn.");
+        }
+
         // 2. Lấy cấu hình giá từ DB
-        int pricePerDay = Integer.parseInt(systemConfigRepository.findByConfigKey("EXTEND_PRICE_PER_DAY")
-                .orElseThrow(() -> new RuntimeException("Chưa cấu hình giá gia hạn."))
-                .getConfigValue());
+        int pricePerDay = resolveExtendPricePerDay();
 
         // Bỏ kiểm tra số ngày tối đa, chỉ cần đảm bảo số ngày là số dương
         if (days <= 0) {
@@ -461,6 +474,10 @@ public class ListingService {
         Listing listing = listingRepository.findById(listingId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng để gia hạn."));
 
+        if (days <= 0) {
+            throw new RuntimeException("Số ngày gia hạn phải lớn hơn 0.");
+        }
+
         Date currentExpiry = listing.getExpiryDate();
         Calendar cal = Calendar.getInstance();
         // Nếu đã hết hạn, gia hạn từ ngày hôm nay. Nếu chưa, gia hạn từ ngày hết hạn cũ.
@@ -468,7 +485,61 @@ public class ListingService {
         cal.add(Calendar.DATE, days);
         listing.setExpiryDate(cal.getTime());
 
+        int extendedDays = listing.getExtendedTimes() != null ? listing.getExtendedTimes() : 0;
+        listing.setExtendedTimes(extendedDays + days);
+        listing.setStatus("ACTIVE");
+
         listingRepository.save(listing);
+    }
+
+    @Transactional
+    public void refreshExpiredListings() {
+        List<Listing> expiredListings = listingRepository.findByStatusAndExpiryDateBefore("ACTIVE", new Date());
+        if (expiredListings == null || expiredListings.isEmpty()) {
+            return;
+        }
+        expiredListings.forEach(listing -> listing.setStatus("EXPIRED"));
+        listingRepository.saveAll(expiredListings);
+    }
+
+    private Listing refreshListingStatus(Listing listing) {
+        if (listing == null) {
+            return null;
+        }
+        String status = listing.getStatus();
+        Date expiry = listing.getExpiryDate();
+        if (status == null || expiry == null) {
+            return listing;
+        }
+        if (!"ACTIVE".equalsIgnoreCase(status)) {
+            return listing;
+        }
+        if (expiry.before(new Date())) {
+            listing.setStatus("EXPIRED");
+            return listingRepository.save(listing);
+        }
+        return listing;
+    }
+
+    private int resolveExtendPricePerDay() {
+        int price = systemConfigRepository.findByConfigKey("EXTEND_PRICE_PER_DAY")
+                .map(config -> parsePositiveInt(config.getConfigValue()))
+                .orElse(DEFAULT_EXTEND_PRICE_PER_DAY);
+        if (price <= 0) {
+            throw new RuntimeException("Giá gia hạn mỗi ngày chưa được cấu hình hợp lệ.");
+        }
+        return price;
+    }
+
+    private int parsePositiveInt(String value) {
+        if (value == null) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
     }
 
     // Các phương thức helper bên dưới

@@ -81,6 +81,7 @@
 }
 
 .status-active { background: #dcfce7; color: #166534; }
+.status-expired { background: #e2e8f0; color: #1e293b; }
 .status-sold { background: #fee2e2; color: #991b1b; }
 .status-processing, .status-pending { background: #fef9c3; color: #92400e; }
 .status-flagged, .status-rejected { background: #f3f4f6; color: #b91c1c; }

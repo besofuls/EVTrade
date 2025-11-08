@@ -12,8 +12,9 @@ Modal.setAppElement("#root");
 // Trạng thái ưu tiên sắp xếp
 const STATUS_ORDER = [
   "ACTIVE",
-  "SOLD",
+  "EXPIRED",
   "PROCESSING",
+  "SOLD",
   "PENDING",
   "FLAGGED",
   "REJECTED",
@@ -21,6 +22,7 @@ const STATUS_ORDER = [
 
 const STATUS_LABELS = {
   ACTIVE: "Đang bán",
+  EXPIRED: "Đã hết hạn",
   SOLD: "Đã bán",
   PROCESSING: "Đang thanh toán",
   PENDING: "Đang chờ duyệt",
@@ -39,6 +41,7 @@ const FILTER_MAP = {
   PAYING: (status) =>
     ["PENDING", "PROCESSING", "PARTIALLY_PAID"].includes(normalizeStatus(status)),
   ACTIVE: (status) => normalizeStatus(status) === "ACTIVE",
+  EXPIRED: (status) => normalizeStatus(status) === "EXPIRED",
   SOLD: (status) => normalizeStatus(status) === "SOLD",
   FLAGGED: (status) => isEditableStatus(status),
 };
@@ -67,7 +70,7 @@ function MyListings() {
   const [extendDays, setExtendDays] = useState(1);
   const [extendLoading, setExtendLoading] = useState(false);
   const [extendFeedback, setExtendFeedback] = useState("");
-  const [extendConfig, setExtendConfig] = useState({ pricePerDay: 10000 });
+  const [extendConfig, setExtendConfig] = useState({ pricePerDay: 5000 });
 
   useEffect(() => {
     // Hiển thị feedback sau khi redirect từ VNPAY
@@ -97,8 +100,8 @@ function MyListings() {
         setBrands(await apiService.getBrands());
         setCategories(await apiService.getCategories());
         // Lấy config mở rộng từ BE
-        const configData = await apiService.getExtendConfig();
-        setExtendConfig({ pricePerDay: Number(configData.EXTEND_PRICE_PER_DAY) || 10000 });
+  const configData = await apiService.getExtendConfig();
+  setExtendConfig({ pricePerDay: Number(configData.EXTEND_PRICE_PER_DAY) || 5000 });
       } catch {}
     }
     fetchListings();
@@ -377,6 +380,11 @@ function MyListings() {
 
   // Xử lý mở rộng bài đăng
   const handleOpenExtendModal = (listing) => {
+    const normalized = normalizeStatus(listing.status);
+    if (!["ACTIVE", "EXPIRED"].includes(normalized)) {
+      showToast("Chỉ bài đăng đang hoạt động hoặc đã hết hạn mới được gia hạn.", "info");
+      return;
+    }
     setSelectedListing(listing);
     setExtendDays(1);
     setExtendFeedback("");
@@ -427,6 +435,7 @@ function MyListings() {
                 <option value="ALL">Tất cả</option>
                 <option value="PAYING">Đang thanh toán</option>
                 <option value="ACTIVE">Đang bán</option>
+                <option value="EXPIRED">Đã hết hạn</option>
                 <option value="SOLD">Đã bán</option>
                 <option value="FLAGGED">Bị từ chối/flagged</option>
               </select>
@@ -445,6 +454,7 @@ function MyListings() {
                     <th>Giá</th>
                     <th>Trạng thái</th>
                     <th>Ngày hết hạn</th>
+                    <th>Đã gia hạn</th>
                     <th>Lý do từ chối</th>
                     <th>Hành động</th>
                   </tr>
@@ -453,8 +463,14 @@ function MyListings() {
                   {sortedListings.map((item) => {
                     const normalizedStatus = normalizeStatus(item.status);
                     const editable = isEditableStatus(normalizedStatus);
+                    const canExtend = ["ACTIVE", "EXPIRED"].includes(normalizedStatus);
                     const thumbClass = `listing-thumb-large ${editable ? "editable" : "non-editable"}`;
                     const titleClass = `listing-title-link ${editable ? "editable" : "disabled"}`;
+                    const expiryDisplay = item.expiryDate
+                      ? `${new Date(item.expiryDate).toLocaleTimeString("vi-VN")} ${new Date(item.expiryDate).toLocaleDateString("vi-VN")}`
+                      : normalizedStatus === "EXPIRED"
+                        ? "Đã hết hạn"
+                        : "—";
                     return (
                       <tr key={item.listingID || item.id}>
                         <td>
@@ -486,11 +502,8 @@ function MyListings() {
                             {STATUS_LABELS[normalizedStatus] || item.status}
                           </span>
                         </td>
-                        <td>
-                          {item.expiryDate
-                            ? `${new Date(item.expiryDate).toLocaleTimeString("vi-VN")} ${new Date(item.expiryDate).toLocaleDateString("vi-VN")}`
-                            : "—"}
-                        </td>
+                        <td>{expiryDisplay}</td>
+                        <td>{Number(item.extendedTimes ?? 0)} ngày</td>
                         <td>
                           {/* Hiển thị lý do từ chối nếu có */}
                           {item.rejectionReason || "—"}
@@ -500,6 +513,8 @@ function MyListings() {
                             className="btn-secondary"
                             style={{ marginRight: 8 }}
                             onClick={() => handleOpenExtendModal(item)}
+                            disabled={!canExtend}
+                            title={canExtend ? "Gia hạn bài đăng" : "Chỉ gia hạn được khi bài đăng đang hoạt động hoặc đã hết hạn"}
                           >
                             Mở rộng
                           </button>
@@ -875,6 +890,24 @@ function MyListings() {
       >
         <div>
           <h2>Mở rộng bài đăng</h2>
+          {selectedListing && (
+            <div className="form-group">
+              <label>Trạng thái hiện tại:</label>
+              <div>
+                <span className={`listing-status status-${normalizeStatus(selectedListing.status).toLowerCase()}`}>
+                  {STATUS_LABELS[normalizeStatus(selectedListing.status)] || normalizeStatus(selectedListing.status)}
+                </span>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <strong>Ngày hết hạn hiện tại:</strong> {selectedListing.expiryDate
+                  ? `${new Date(selectedListing.expiryDate).toLocaleTimeString("vi-VN")} ${new Date(selectedListing.expiryDate).toLocaleDateString("vi-VN")}`
+                  : "Chưa có"}
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <strong>Đã gia hạn:</strong> {Number(selectedListing.extendedTimes ?? 0)} ngày
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label>Chọn số ngày muốn mở rộng:</label>
             <input

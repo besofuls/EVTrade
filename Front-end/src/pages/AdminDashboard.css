@@ -179,6 +179,32 @@
 .status.pending { background: #fffde7; color: #fbc02d; }
 .status.rejected { background: #ffe6e6; color: #c62828; }
 
+.admin-config-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-config-card input {
+  width: 100%;
+  max-width: 280px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.admin-config-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-config-hint {
+  font-size: 13px;
+  color: #64748b;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .admin-dashboard-wrapper { flex-direction: column; }

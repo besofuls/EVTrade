@@ -548,6 +548,24 @@ const apiService = {
     return configs;
   },
 
+  updateExtendConfig: async function (pricePerDay) {
+    const token = this.getAuthToken();
+    const res = await fetch(`${API_BASE_URL}/system-config/extend-price`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+      body: JSON.stringify({ pricePerDay }),
+    });
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể cập nhật cấu hình hệ thống");
+    }
+    return await res.json();
+  },
+
   // Tạo thanh toán để gia hạn bài đăng
   createExtendPayment: async function (listingId, days) {
     const token = this.getAuthToken();

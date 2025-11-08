@@ -27,7 +27,11 @@ public class ListingSearchService {
     @Autowired
     private ListingMapper listingMapper;
 
+    @Autowired
+    private ListingService listingService;
+
     public Page<ListingResponseDTO> search(ListingSearchCriteria criteria, Pageable pageable, boolean isModerator) {
+        listingService.refreshExpiredListings();
         Page<Listing> page = listingRepository.findAll(
             ListingSpecifications.build(criteria, isModerator), 
             pageable

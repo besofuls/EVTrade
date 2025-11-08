@@ -30,6 +30,7 @@ public class ListingMapper {
         dto.setCreatedAt(listing.getCreatedAt());
         dto.setStartDate(listing.getStartDate());
         dto.setExpiryDate(listing.getExpiryDate());
+    dto.setExtendedTimes(listing.getExtendedTimes());
         dto.setAverageRating(listing.getAverageRating());
         dto.setRejectionReason(listing.getRejectionReason()); // Thêm lý do từ chối
         

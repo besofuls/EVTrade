@@ -4,8 +4,8 @@ import com.evtrading.swp391.dto.VnpayCallbackResultDTO;
 import com.evtrading.swp391.entity.Payment;
 import com.evtrading.swp391.entity.Transaction;
 import com.evtrading.swp391.repository.PaymentRepository;
-import com.evtrading.swp391.repository.SystemConfigRepository;
 import com.evtrading.swp391.repository.TransactionRepository;
+import com.evtrading.swp391.service.SystemConfigService;
 import com.evtrading.swp391.util.VnpayUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,17 +26,17 @@ public class VnpayService {
     private final TransactionRepository transactionRepository;
     private final OrderService orderService;
     private final ListingService listingService;
-    private final SystemConfigRepository systemConfigRepository;
+    private final SystemConfigService systemConfigService;
 
     @Value("${vnpay.hashSecret}")
     private String vnpHashSecret;
 
-    public VnpayService(PaymentRepository paymentRepository, TransactionRepository transactionRepository, OrderService orderService, ListingService listingService, SystemConfigRepository systemConfigRepository) {
+    public VnpayService(PaymentRepository paymentRepository, TransactionRepository transactionRepository, OrderService orderService, ListingService listingService, SystemConfigService systemConfigService) {
         this.paymentRepository = paymentRepository;
         this.transactionRepository = transactionRepository;
         this.orderService = orderService;
         this.listingService = listingService;
-        this.systemConfigRepository = systemConfigRepository;
+        this.systemConfigService = systemConfigService;
     }
 
     @Transactional
@@ -92,19 +92,20 @@ public class VnpayService {
         String transactionType = transaction.getReferenceType();
         if ("LISTING_EXTEND".equals(transactionType)) {
             // Lấy giá gia hạn một cách an toàn
-            int pricePerDay = systemConfigRepository.findByConfigKey("EXTEND_PRICE_PER_DAY")
-                    .map(config -> Integer.parseInt(config.getConfigValue()))
-                    .orElseThrow(() -> new IllegalStateException("Chưa cấu hình giá gia hạn (EXTEND_PRICE_PER_DAY) trong hệ thống."));
-
-            // Kiểm tra giá tiền trước khi chia để tránh lỗi
-            if (pricePerDay > 0) {
-                int days = transaction.getTotalAmount().intValue() / pricePerDay;
-                // Gọi service để gia hạn
-                listingService.extendListingExpiry(transaction.getReferenceID(), days);
-                logger.info("VNPAY callback: Listing {} extended by {} days.", transaction.getReferenceID(), days);
-            } else {
-                logger.error("Giá gia hạn mỗi ngày đang được cấu hình là 0. Không thể thực hiện gia hạn.");
+            int pricePerDay = systemConfigService.getExtendPricePerDay();
+            if (pricePerDay <= 0) {
+                logger.error("Giá gia hạn mỗi ngày không hợp lệ ({}).", pricePerDay);
+                throw new IllegalStateException("Giá gia hạn mỗi ngày không hợp lệ.");
             }
+
+            int days = transaction.getTotalAmount().intValue() / pricePerDay;
+            if (days <= 0) {
+                logger.error("Số ngày gia hạn tính được không hợp lệ: {}", days);
+                throw new IllegalStateException("Không thể tính được số ngày gia hạn từ giao dịch.");
+            }
+
+            listingService.extendListingExpiry(transaction.getReferenceID(), days);
+            logger.info("VNPAY callback: Listing {} extended by {} days.", transaction.getReferenceID(), days);
         } else { // Mặc định là thanh toán cho đơn hàng
             orderService.processSuccessfulOrderPayment(transaction, payment);
             // Kiểm tra order tồn tại trước khi ghi log để tránh NullPointerException
