@@ -68,6 +68,22 @@
   gap: 18px;
 }
 
+.admin-stat-card--clickable {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.admin-stat-card--clickable:hover,
+.admin-stat-card--clickable:focus {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(25,118,210,0.12);
+  outline: none;
+}
+
+.admin-stat-card--clickable:focus-visible {
+  box-shadow: 0 0 0 3px rgba(25,118,210,0.3);
+}
+
 .admin-stat-icon {
   width: 44px;
   height: 44px;
@@ -93,6 +109,28 @@
   font-size: 22px;
   font-weight: 700;
   color: #222;
+}
+
+.admin-stat-sub {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.admin-dashboard-overview-header {
+  margin-bottom: 16px;
+  min-height: 20px;
+}
+
+.admin-dashboard-hint {
+  color: #2563eb;
+  font-size: 14px;
+}
+
+.admin-dashboard-error {
+  color: #dc2626;
+  font-size: 14px;
 }
 
 .admin-dashboard-section {
