@@ -19,11 +19,42 @@ function AdminDashboard() {
     transactionCount: 0,
     complaintCount: 0,
   });
+  const [financialStats, setFinancialStats] = useState({
+    totalOrderRevenue: 0,
+    totalExtendRevenue: 0,
+    categoryStats: [],
+  });
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState("");
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState("");
   const [extendPriceInput, setExtendPriceInput] = useState(5000);
   const [configSaving, setConfigSaving] = useState(false);
   const { showToast } = useToast();
+
+  const chartColors = ["#2563eb", "#f97316", "#22c55e", "#a855f7", "#eab308", "#ec4899", "#14b8a6"];
+
+  const combinedRevenue = Number(financialStats.totalOrderRevenue || 0) + Number(financialStats.totalExtendRevenue || 0);
+
+  const totalCategoryCount = financialStats.categoryStats.reduce(
+    (sum, item) => sum + Number(item?.listingCount || 0),
+    0
+  );
+
+  const pieGradient = (() => {
+    if (!financialStats.categoryStats.length || totalCategoryCount <= 0) {
+      return "conic-gradient(#e2e8f0 0deg 360deg)";
+    }
+    let cumulative = 0;
+    const segments = financialStats.categoryStats.map((item, index) => {
+      const value = Number(item.listingCount || 0);
+      const startAngle = (cumulative / totalCategoryCount) * 360;
+      cumulative += value;
+      const endAngle = (cumulative / totalCategoryCount) * 360;
+      return `${chartColors[index % chartColors.length]} ${startAngle}deg ${endAngle}deg`;
+    });
+    return `conic-gradient(${segments.join(", ")})`;
+  })();
 
   const extractArray = (data) => {
     if (!data) return [];
@@ -41,6 +72,16 @@ function AdminDashboard() {
     if (typeof data.count === "number") return data.count;
     if (typeof data.total === "number") return data.total;
     return 0;
+  };
+
+  const formatCurrency = (amount) => {
+    const numeric = Number(amount);
+    const value = Number.isFinite(numeric) ? numeric : 0;
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 0,
+    }).format(value);
   };
 
   const determineMemberCount = (users) => {
@@ -97,12 +138,42 @@ function AdminDashboard() {
         transactionCount,
         complaintCount,
       });
+
     } catch (error) {
       const message = error?.message || "Không thể tải số liệu tổng quan.";
       setStatsError(message);
       showToast(message, "error");
     } finally {
       setStatsLoading(false);
+    }
+  }, [showToast]);
+
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    setAnalyticsError("");
+    try {
+      const overview = await apiService.getAdminOverviewStats();
+      setFinancialStats({
+        totalOrderRevenue: Number(overview?.totalOrderRevenue ?? 0),
+        totalExtendRevenue: Number(overview?.totalExtendRevenue ?? 0),
+        categoryStats: Array.isArray(overview?.categoryStats)
+          ? overview.categoryStats.map((item) => ({
+              categoryName: item?.categoryName ?? "",
+              listingCount: Number(item?.listingCount ?? 0),
+            }))
+          : [],
+      });
+    } catch (error) {
+      const message = error?.message || "Không thể tải dữ liệu thống kê.";
+      setAnalyticsError(message);
+      setFinancialStats({
+        totalOrderRevenue: 0,
+        totalExtendRevenue: 0,
+        categoryStats: [],
+      });
+      showToast(message, "error");
+    } finally {
+      setAnalyticsLoading(false);
     }
   }, [showToast]);
 
@@ -148,6 +219,12 @@ function AdminDashboard() {
       loadStats();
     }
   }, [activeTab, loadStats]);
+
+  useEffect(() => {
+    if (activeTab === "analytics") {
+      loadAnalytics();
+    }
+  }, [activeTab, loadAnalytics]);
 
   useEffect(() => {
     if (activeTab === "settings") {
@@ -274,6 +351,86 @@ function AdminDashboard() {
                   {/* Dữ liệu động sẽ được render ở đây */}
                 </tbody>
               </table>
+            </div>
+          </>
+        )}
+        {activeTab === "analytics" && (
+          <>
+            <div className="admin-dashboard-overview-header">
+              {analyticsLoading && <div className="admin-dashboard-hint">Đang tải thống kê...</div>}
+              {!analyticsLoading && analyticsError && (
+                <div className="admin-dashboard-error">{analyticsError}</div>
+              )}
+            </div>
+            <div className="admin-dashboard-section">
+              <h2>Tổng quan doanh thu</h2>
+              {analyticsLoading ? (
+                <div className="admin-dashboard-hint">Đang tổng hợp dữ liệu...</div>
+              ) : (
+                <div className="admin-analytics-grid">
+                  <div className="admin-stat-card">
+                    <div className="admin-stat-icon orders"></div>
+                    <div>
+                      <div className="admin-stat-label">Doanh thu giao dịch</div>
+                      <div className="admin-stat-value">{formatCurrency(financialStats.totalOrderRevenue)}</div>
+                      <div className="admin-stat-sub">Tổng giá trị các đơn hàng hoàn tất</div>
+                    </div>
+                  </div>
+                  <div className="admin-stat-card">
+                    <div className="admin-stat-icon extend"></div>
+                    <div>
+                      <div className="admin-stat-label">Doanh thu gia hạn</div>
+                      <div className="admin-stat-value">{formatCurrency(financialStats.totalExtendRevenue)}</div>
+                      <div className="admin-stat-sub">Phí thu được từ gia hạn bài đăng</div>
+                    </div>
+                  </div>
+                  <div className="admin-stat-card">
+                    <div className="admin-stat-icon revenue"></div>
+                    <div>
+                      <div className="admin-stat-label">Tổng doanh thu</div>
+                      <div className="admin-stat-value">{formatCurrency(combinedRevenue)}</div>
+                      <div className="admin-stat-sub">Gồm giao dịch + gia hạn</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="admin-dashboard-section">
+              <h2>Phân bố bài đăng theo danh mục</h2>
+              {analyticsLoading ? (
+                <div className="admin-dashboard-hint">Đang vẽ biểu đồ...</div>
+              ) : financialStats.categoryStats.length > 0 ? (
+                <div className="admin-analytics-chart">
+                  <div className="admin-pie-chart" style={{ background: pieGradient }}>
+                    {totalCategoryCount > 0 && (
+                      <div className="admin-pie-center">
+                        <div className="admin-pie-total">{totalCategoryCount.toLocaleString("vi-VN")}</div>
+                        <div className="admin-pie-label">Bài đăng</div>
+                      </div>
+                    )}
+                  </div>
+                  <ul className="admin-pie-legend">
+                    {financialStats.categoryStats.map((item, index) => {
+                      const value = Number(item.listingCount || 0);
+                      const percent = totalCategoryCount > 0 ? Math.round((value / totalCategoryCount) * 1000) / 10 : 0;
+                      return (
+                        <li key={item.categoryName || index}>
+                          <span
+                            className="legend-color"
+                            style={{ backgroundColor: chartColors[index % chartColors.length] }}
+                          ></span>
+                          <span className="legend-name">{item.categoryName || "Không rõ"}</span>
+                          <span className="legend-value">
+                            {value.toLocaleString("vi-VN")} ({percent}% )
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : (
+                <div className="admin-dashboard-hint">Chưa có dữ liệu bài đăng để thống kê.</div>
+              )}
             </div>
           </>
         )}
