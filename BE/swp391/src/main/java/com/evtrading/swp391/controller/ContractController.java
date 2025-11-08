@@ -22,6 +22,9 @@ public class ContractController {
         this.contractService = contractService;
     }
 
+    @Operation(summary = "Admin/Moderator: Gửi hợp đồng", description = "Chỉ ADMIN hoặc MODERATOR mới được tạo và gửi hợp đồng")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     @PostMapping("/send")
     public ResponseEntity<ContractDTO> createAndSend(@RequestBody ContractCreateDTO req,
                                                      Authentication authentication) {

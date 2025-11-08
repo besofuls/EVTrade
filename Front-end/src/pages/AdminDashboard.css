@@ -98,6 +98,8 @@
 .admin-stat-icon.posts::before { content: "📦"; }
 .admin-stat-icon.orders::before { content: "💳"; }
 .admin-stat-icon.complaints::before { content: "⚠️"; }
+.admin-stat-icon.revenue::before { content: "💰"; }
+.admin-stat-icon.extend::before { content: "🕒"; }
 
 .admin-stat-label {
   font-size: 15px;
@@ -203,6 +205,118 @@
 .admin-config-hint {
   font-size: 13px;
   color: #64748b;
+}
+
+.admin-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.admin-category-card {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.admin-category-name {
+  font-size: 14px;
+  color: #334155;
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: capitalize;
+}
+
+.admin-category-count {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-analytics-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.admin-analytics-chart {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-pie-chart {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1);
+}
+
+.admin-pie-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #f8fafc;
+  border-radius: 50%;
+  width: 110px;
+  height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 2px rgba(148, 163, 184, 0.2);
+}
+
+.admin-pie-total {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-pie-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #64748b;
+}
+
+.admin-pie-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.admin-pie-legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.legend-name {
+  flex: 1;
+}
+
+.legend-value {
+  font-weight: 600;
+  color: #1f2937;
 }
 
 /* Responsive */

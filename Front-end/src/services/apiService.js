@@ -688,6 +688,25 @@ const apiService = {
     return await res.json();
   },
 
+  getAdminOverviewStats: async function () {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+
+    const res = await fetch(`${API_BASE_URL}/admin/stats/overview`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể tải số liệu thống kê");
+    }
+
+    return await res.json();
+  },
+
   // Khóa hoặc mở khóa người dùng (chỉ dành cho Admin)
   disableUser: async function (userId) {
     const token = this.getAuthToken();

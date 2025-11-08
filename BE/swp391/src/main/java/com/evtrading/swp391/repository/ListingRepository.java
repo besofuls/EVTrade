@@ -4,9 +4,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.evtrading.swp391.entity.Listing;
+import com.evtrading.swp391.repository.projection.CategoryListingCountProjection;
 
 @Repository
 public interface ListingRepository extends JpaRepository<Listing, Integer>, JpaSpecificationExecutor<Listing> {
@@ -27,4 +30,10 @@ public interface ListingRepository extends JpaRepository<Listing, Integer>, JpaS
 
     // Find all listings in a category (used for price anomaly checks)
     java.util.List<Listing> findAllByCategoryCategoryID(Integer categoryId);
+
+    @Query("SELECT l.category.categoryName AS categoryName, COUNT(l) AS listingCount " +
+           "FROM Listing l " +
+           "WHERE (:status IS NULL OR UPPER(l.status) = UPPER(:status)) " +
+           "GROUP BY l.category.categoryName")
+    java.util.List<CategoryListingCountProjection> countListingsGroupedByCategory(@Param("status") String status);
 }
