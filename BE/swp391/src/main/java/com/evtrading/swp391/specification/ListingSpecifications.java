@@ -4,6 +4,7 @@ import com.evtrading.swp391.dto.ListingSearchCriteria;
 import com.evtrading.swp391.entity.Listing;
 import org.springframework.data.jpa.domain.Specification;
 import java.math.BigDecimal;
+import java.util.Date;
 
 public class ListingSpecifications {
 
@@ -17,7 +18,8 @@ public class ListingSpecifications {
                 .and(priceLte(c.getMaxPrice()))
                 .and(yearGte(c.getMinYear()))
                 .and(yearLte(c.getMaxYear()))
-                .and(userId(c.getUserId()));
+                .and(userId(c.getUserId()))
+                .and(notExpired(isModerator));
     }
 
     private static Specification<Listing> statusScope(boolean isModerator, String requestedStatus) {
@@ -100,6 +102,19 @@ public class ListingSpecifications {
         return (root, q, cb) -> {
             if (userId == null) return cb.conjunction();
             return cb.equal(root.get("user").get("userID"), userId);
+        };
+    }
+
+    private static Specification<Listing> notExpired(boolean isModerator) {
+        return (root, q, cb) -> {
+            if (isModerator) {
+                return cb.conjunction();
+            }
+            Date now = new Date();
+            return cb.or(
+                    cb.isNull(root.get("expiryDate")),
+                    cb.greaterThanOrEqualTo(root.get("expiryDate"), now)
+            );
         };
     }
 }

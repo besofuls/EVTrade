@@ -4,4 +4,6 @@ import java.math.BigDecimal;
 
 public interface SystemConfigService {
     BigDecimal getCommissionRate();
+    int getExtendPricePerDay();
+    int updateExtendPricePerDay(int pricePerDay);
 }

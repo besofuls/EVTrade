@@ -68,6 +68,22 @@
   gap: 18px;
 }
 
+.admin-stat-card--clickable {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.admin-stat-card--clickable:hover,
+.admin-stat-card--clickable:focus {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(25,118,210,0.12);
+  outline: none;
+}
+
+.admin-stat-card--clickable:focus-visible {
+  box-shadow: 0 0 0 3px rgba(25,118,210,0.3);
+}
+
 .admin-stat-icon {
   width: 44px;
   height: 44px;
@@ -93,6 +109,28 @@
   font-size: 22px;
   font-weight: 700;
   color: #222;
+}
+
+.admin-stat-sub {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.admin-dashboard-overview-header {
+  margin-bottom: 16px;
+  min-height: 20px;
+}
+
+.admin-dashboard-hint {
+  color: #2563eb;
+  font-size: 14px;
+}
+
+.admin-dashboard-error {
+  color: #dc2626;
+  font-size: 14px;
 }
 
 .admin-dashboard-section {
@@ -140,6 +178,32 @@
 .status.success { background: #e6ffe6; color: #2e7d32; }
 .status.pending { background: #fffde7; color: #fbc02d; }
 .status.rejected { background: #ffe6e6; color: #c62828; }
+
+.admin-config-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-config-card input {
+  width: 100%;
+  max-width: 280px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.admin-config-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-config-hint {
+  font-size: 13px;
+  color: #64748b;
+}
 
 /* Responsive */
 @media (max-width: 900px) {

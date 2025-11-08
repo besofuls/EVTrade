@@ -19,6 +19,7 @@ function ProductDetail() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [complaintLoading, setComplaintLoading] = useState(false);
+  const [isOrderConfirmOpen, setIsOrderConfirmOpen] = useState(false);
 
   // Comment & rating states
   const [comments, setComments] = useState([]);
@@ -208,12 +209,24 @@ function ProductDetail() {
     setCurrentImageIndex(index);
   };
 
-  const handleOrder = async () => {
-    setOrderLoading(true);
+  const handleOrderClick = () => {
     if (!apiService.getAuthToken()) {
+      showToast("Vui lòng đăng nhập để đặt hàng.", "warning");
       navigate("/login");
       return;
     }
+    setIsOrderConfirmOpen(true);
+  };
+
+  const handleOrder = async () => {
+    if (!apiService.getAuthToken()) {
+      setIsOrderConfirmOpen(false);
+      showToast("Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.", "error");
+      navigate("/login");
+      return;
+    }
+    setOrderLoading(true);
+    setIsOrderConfirmOpen(false);
     try {
       await apiService.createOrder({ listingId: Number(id), quantity: 1 });
       showToast("Đặt đơn hàng thành công!", "success");
@@ -424,7 +437,7 @@ function ProductDetail() {
 
             <div className="pd-actions">
               {!hideOrderBtn && (
-                <button className="pd-btn primary" onClick={handleOrder} disabled={orderLoading}>
+                <button className="pd-btn primary" onClick={handleOrderClick} disabled={orderLoading}>
                   {orderLoading ? "Đang xử lý..." : "🛒 Đặt mua ngay"}
                 </button>
               )}
@@ -507,6 +520,35 @@ function ProductDetail() {
             </div>
           </div>
         </div>
+
+        {/* Modal xác nhận đặt hàng */}
+        {isOrderConfirmOpen && (
+          <div className="pd-confirm-modal-overlay">
+            <div className="pd-confirm-modal">
+              <h3>Xác nhận đặt mua</h3>
+              <p>
+                Bạn có chắc chắn muốn đặt mua {" "}
+                {item.title ? `"${item.title}"` : "sản phẩm này"}?
+              </p>
+              <div className="pd-confirm-actions">
+                <button
+                  className="pd-btn"
+                  onClick={() => setIsOrderConfirmOpen(false)}
+                  disabled={orderLoading}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="pd-btn primary"
+                  onClick={handleOrder}
+                  disabled={orderLoading}
+                >
+                  {orderLoading ? "Đang xử lý..." : "Xác nhận"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal Khiếu nại */}
         {isComplaintModalOpen && (

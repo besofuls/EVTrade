@@ -15,6 +15,7 @@ public class ListingResponseDTO {
     private Date createdAt;
     private Date startDate;
     private Date expiryDate;
+    private Integer extendedTimes;
     private Double averageRating;
     private String rejectionReason;
     

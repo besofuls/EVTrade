@@ -42,6 +42,7 @@ public final class SecurityPaths {
 
     private static final String[] ADMIN_ENDPOINTS = new String[] {
         // Add admin-only endpoints here
+        "/api/system-config/**"
     };
 
     private SecurityPaths() {

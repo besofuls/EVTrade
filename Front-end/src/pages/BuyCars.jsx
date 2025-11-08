@@ -10,7 +10,7 @@ function BuyCars() {
   // Bộ lọc
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
-  const [priceRange, setPriceRange] = useState([5000000, 2000000000]);
+  const [priceRange, setPriceRange] = useState([0, 2000000000]);
 
   // Dữ liệu
   const [categories, setCategories] = useState([]);
@@ -273,7 +273,7 @@ function BuyCars() {
                 </div>
                 <div className="price-slider-container">
                   <input
-                    min="5000000"
+                    min="0"
                     max="20000000000"
                     step="5000000"
                     type="range"
@@ -284,7 +284,7 @@ function BuyCars() {
                     }}
                   />
                   <input
-                    min="5000000"
+                    min="0"
                     max="20000000000"
                     step="5000000"
                     type="range"
@@ -301,7 +301,7 @@ function BuyCars() {
                 onClick={() => {
                   setSelectedCategory("all");
                   setSelectedBrand("all");
-                  setPriceRange([5000000, 2000000000]);
+                  setPriceRange([0, 2000000000]);
                 }}
               >
                 Xóa bộ lọc
@@ -367,9 +367,12 @@ function BuyCars() {
                           <div className="product-footer">
                             <button
                               className="contact-btn"
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/product/${item.id}`);
+                              }}
                             >
-                              Đặt mua
+                              Xem chi tiết
                             </button>
                           </div>
                         </div>
