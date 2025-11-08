@@ -367,9 +367,12 @@ function BuyCars() {
                           <div className="product-footer">
                             <button
                               className="contact-btn"
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/product/${item.id}`);
+                              }}
                             >
-                              Đặt mua
+                              Xem chi tiết
                             </button>
                           </div>
                         </div>
