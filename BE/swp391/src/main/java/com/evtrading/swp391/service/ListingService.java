@@ -626,6 +626,24 @@ public class ListingService {
         return saveListingImages(listing, imageURLs, primaryIndex);
     }
 
+    @Transactional
+    public ListingResponseDTO deleteListing(Integer listingId, String reason) {
+        Listing listing = listingRepository.findById(listingId)
+                .orElseThrow(() -> new RuntimeException("Listing not found with id: " + listingId));
+
+        listing.setStatus("DELETED");
+        if (reason != null && !reason.trim().isEmpty()) {
+            listing.setRejectionReason(reason.trim());
+        } else {
+            listing.setRejectionReason(null);
+        }
+        listing.setExpiryDate(new Date());
+
+        Listing savedListing = listingRepository.save(listing);
+        List<ListingImage> images = listingImageRepository.findByListingListingID(listingId);
+        return convertToListingResponseDTO(savedListing, images);
+    }
+
     private ListingResponseDTO convertToListingResponseDTO(Listing listing, List<ListingImage> images) {
         return listingMapper.toDto(listing, images);
     }

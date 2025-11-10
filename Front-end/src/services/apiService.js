@@ -748,6 +748,31 @@ const apiService = {
     return await res.json();
   },
 
+  deleteListing: async function (listingId, reason) {
+    const token = this.getAuthToken();
+    const url = new URL(`${API_BASE_URL}/listings/${listingId}`);
+    if (reason) {
+      url.searchParams.append("reason", reason);
+    }
+
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Không thể xóa bài đăng");
+    }
+
+    if (res.status === 204) return null;
+
+    return await res.json();
+  },
+
   // Lấy danh sách tất cả bài đăng status PENDING (chỉ dành cho Moderator và Admin)
   getListingsPending: async function () {
     const token = this.getAuthToken();

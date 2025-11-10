@@ -87,6 +87,16 @@
   opacity: 0.85;
 }
 
+.admin-link-btn {
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.admin-link-btn:focus {
+  outline: none;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;

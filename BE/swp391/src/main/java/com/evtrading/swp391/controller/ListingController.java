@@ -181,6 +181,21 @@ public class ListingController {
         }
     }
 
+    @Operation(summary = "Xóa bài đăng", description = "Admin xóa (soft delete) bài đăng và ghi nhận lý do")
+    @SecurityRequirement(name = "bearerAuth")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ListingResponseDTO> deleteListing(
+            @PathVariable Integer id,
+            @RequestParam(required = false) String reason) {
+        try {
+            ListingResponseDTO deleted = listingService.deleteListing(id, reason);
+            return ResponseEntity.ok(deleted);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+    }
+
     @SecurityRequirements
     @Operation(summary = "Tìm kiếm bài đăng", description = "Tìm kiếm theo từ khóa, category, brand, khoảng giá, năm sản xuất...")
     @GetMapping("/search")
