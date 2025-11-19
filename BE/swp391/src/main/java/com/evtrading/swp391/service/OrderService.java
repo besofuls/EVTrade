@@ -117,6 +117,7 @@ public class OrderService {
         transaction.setPaidAmount(BigDecimal.ZERO);
         transaction.setStatus("PENDING");
         transaction.setCreatedAt(new Date());
+        //////////////////////////////////////////////////////////////////////////////////
         // Thiết lập thời hạn thanh toán từ system config (đang để cố định 7 ngày)
         transaction.setDueTime(new Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000));
         Transaction savedTransaction = transactionRepository.save(transaction);

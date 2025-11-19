@@ -40,12 +40,23 @@ public class SystemConfigController {
                 .collect(Collectors.toMap(SystemConfig::getConfigKey, SystemConfig::getConfigValue));
     }
 
-    @PutMapping("/extend-price")
+
+
+    @PutMapping("/update")
     @PreAuthorize("hasRole('ADMIN')")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Cập nhật giá gia hạn mỗi ngày", description = "Chỉ admin mới được phép thay đổi giá gia hạn bài đăng theo ngày.")
-    public Map<String, String> updateExtendPrice(@RequestBody UpdateExtendPriceRequest request) {
-        int updated = systemConfigService.updateExtendPricePerDay(request.getPricePerDay());
-        return Map.of("EXTEND_PRICE_PER_DAY", String.valueOf(updated));
+    @Operation(summary = "Cập nhật nhiều cấu hình hệ thống", description = "Chỉ admin mới được phép thay đổi các cấu hình hệ thống.")
+    public Map<String, String> updateConfigs(@RequestBody Map<String, String> updates) {
+        List<SystemConfig> configs = systemConfigRepository.findByConfigKeyIn(updates.keySet().stream().toList());
+        for (SystemConfig config : configs) {
+            String newValue = updates.get(config.getConfigKey());
+            if (newValue != null) {
+                config.setConfigValue(newValue);
+                systemConfigRepository.save(config);
+            }
+        }
+        // Trả về các giá trị mới
+        return configs.stream()
+                .collect(Collectors.toMap(SystemConfig::getConfigKey, SystemConfig::getConfigValue));
     }
 }

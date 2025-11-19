@@ -19,5 +19,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Intege
     List<Transaction> findByOrder_BuyerAndCreatedAtBetween(User buyer, Date fromDate, Date toDate);
     List<Transaction> findByOrder_Buyer(User buyer);
     List<Transaction> findByCreatedAtBetween(Date fromDate, Date toDate);
-
+    List<Transaction> findByDueTimeBeforeAndStatusNot(Date now, String status);
+    List<Transaction> findByStatusAndPayoutDoneFalse(String status);
+    // Bạn cần implement custom query hoặc thêm trường boolean "payoutDone" vào entity Transaction để lọc
 }

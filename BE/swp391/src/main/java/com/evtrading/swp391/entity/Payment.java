@@ -17,7 +17,7 @@ public class Payment {
     private BigDecimal amount;
     private String method;        
     private String provider;      
-    private String status;        // PENDING, PAID, READY_FOR_PAYOUT, PAID_OUT, PAYOUT_FAILED
+    private String status;        
     private Date paidAt;
 
     @Column(name = "txn_ref")

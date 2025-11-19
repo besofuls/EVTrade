@@ -538,26 +538,33 @@ const apiService = {
     return await res.json();
   },
 
-  // Lấy cấu hình hệ thống public (ví dụ: giá gia hạn)
-  getExtendConfig: async function () {
-    // Giả sử backend có endpoint này để trả về các config public
-    // GET /api/system-config/public?keys=EXTEND_PRICE_PER_DAY
-    const res = await fetch(`${API_BASE_URL}/system-config/public?keys=EXTEND_PRICE_PER_DAY`);
-    if (!res.ok) return { EXTEND_PRICE_PER_DAY: 5000 }; // Giá trị mặc định
-    const configs = await res.json();
-    return configs;
+/**
+   * Lấy nhiều cấu hình hệ thống (public).
+   * @param {Array<string>} keys - Mảng các key cần lấy, ví dụ: ["EXTEND_PRICE_PER_DAY", "FREE_LISTING_DAYS", "COMMISSION_RATE"]
+   * @returns {Promise<Object>} - Trả về object { EXTEND_PRICE_PER_DAY: "5000", ... }
+   */
+  getSystemConfigs: async function (keys = []) {
+    const query = keys.length ? `?keys=${keys.join(",")}` : "";
+    const res = await fetch(`${API_BASE_URL}/system-config/public${query}`);
+    if (!res.ok) return {};
+    return await res.json();
   },
 
-  updateExtendConfig: async function (pricePerDay) {
+  /**
+   * Cập nhật nhiều cấu hình hệ thống (chỉ dành cho Admin).
+   * @param {Object} updates - Ví dụ: { FREE_LISTING_DAYS: "20", EXTEND_PRICE_PER_DAY: "6000", COMMISSION_RATE: "0.07" }
+   */
+  updateSystemConfigs: async function (updates) {
     const token = this.getAuthToken();
-    const res = await fetch(`${API_BASE_URL}/system-config/extend-price`, {
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+    const res = await fetch(`${API_BASE_URL}/system-config/update`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         Accept: "*/*",
       },
-      body: JSON.stringify({ pricePerDay }),
+      body: JSON.stringify(updates),
     });
     if (!res.ok) {
       const message = await res.text();

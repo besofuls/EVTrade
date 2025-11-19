@@ -5,9 +5,9 @@ import "./AdminSidebar.css";
 function AdminSidebar({ activeTab, setActiveTab }) {
   const navigate = useNavigate();
   const [authorized, setAuthorized] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Kiểm tra user ở sidebar
     const storedUser = localStorage.getItem("user");
     let user = null;
     if (storedUser) {
@@ -17,8 +17,9 @@ function AdminSidebar({ activeTab, setActiveTab }) {
         user = null;
       }
     }
-    const roles = user?.roles || [];
-    if (!user || !(roles.includes("ADMIN") || roles.includes("MODERATOR"))) {
+    const roles = user?.roles?.map(r => r.toUpperCase()) || [];
+    setIsAdmin(roles.includes("ADMIN"));
+    if (!user || (!roles.includes("ADMIN") && !roles.includes("MODERATOR"))) {
       setAuthorized(false);
       navigate("/");
     } else {
@@ -36,10 +37,12 @@ function AdminSidebar({ activeTab, setActiveTab }) {
         <li className={activeTab === "users" ? "active" : ""} onClick={() => setActiveTab("users")}>Người dùng</li>
         <li className={activeTab === "posts" ? "active" : ""} onClick={() => setActiveTab("posts")}>Bài đăng</li>
         <li className={activeTab === "orders" ? "active" : ""} onClick={() => setActiveTab("orders")}>Giao dịch</li>
-  <li className={activeTab === "analytics" ? "active" : ""} onClick={() => setActiveTab("analytics")}>Thống kê</li>
-  <li className={activeTab === "complaints" ? "active" : ""} onClick={() => setActiveTab("complaints")}>Khiếu nại</li>
+        <li className={activeTab === "analytics" ? "active" : ""} onClick={() => setActiveTab("analytics")}>Thống kê</li>
+        <li className={activeTab === "complaints" ? "active" : ""} onClick={() => setActiveTab("complaints")}>Khiếu nại</li>
         <li className={activeTab === "contracts" ? "active" : ""} onClick={() => setActiveTab("contracts")}>Hợp đồng</li>
-  <li className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>Cấu hình</li>
+        {isAdmin && (
+          <li className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>Cấu hình</li>
+        )}
         <li onClick={() => { localStorage.clear(); navigate("/"); }}>Đăng xuất</li>
       </ul>
       <button

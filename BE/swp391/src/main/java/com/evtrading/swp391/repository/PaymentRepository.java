@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import com.evtrading.swp391.entity.Transaction;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Integer> {
     Optional<Payment> findFirstByTransactionAndStatus(Transaction transaction, String status);
     Optional<Payment> findByTxnRef(String txnRef);
     List<Payment> findAllByStatus(String status);
+    List<Payment> findByStatusAndPaidAtBefore(String status, Date before);
 
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p " +
            "WHERE (:status IS NULL OR LOWER(p.status) = LOWER(:status)) " +

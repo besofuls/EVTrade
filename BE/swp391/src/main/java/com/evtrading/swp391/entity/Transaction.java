@@ -26,6 +26,7 @@ public class Transaction {
     private String status;
     private Date createdAt;
     private Date dueTime;
+    private Boolean payoutDone = false;
 
     // Getters and Setters
     public Integer getTransactionID() { return transactionID; }
@@ -50,4 +51,6 @@ public class Transaction {
     public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
     public Date getDueTime() { return dueTime; }
     public void setDueTime(Date dueTime) { this.dueTime = dueTime; }
+    public Boolean getPayoutDone() { return payoutDone; }
+    public void setPayoutDone(Boolean payoutDone) { this.payoutDone = payoutDone; }
 }
