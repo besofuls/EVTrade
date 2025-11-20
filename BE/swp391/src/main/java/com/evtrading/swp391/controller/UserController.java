@@ -20,19 +20,19 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    // Lấy danh sách tất cả user
-    @PreAuthorize("hasRole('ADMIN')")
+    // Lấy danh sách tất cả user cho admin và moderator (moderator không được xem admin)
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     @GetMapping
     public List<User> getAllUsers() {
         return userService.getAllUsers()
-        .stream()
-        .filter(u -> u.getRole() != null && !"Admin".equalsIgnoreCase(u.getRole().getRoleName()))
-        .toList();
+            .stream()
+            .filter(u -> u.getRole() != null && !"Admin".equalsIgnoreCase(u.getRole().getRoleName()))
+            .toList();
     }
 
-    // Lấy thông tin user theo id
+    // Lấy thông tin user theo id (với admin, moderator hoặc chính user đó)
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or principal.username == @userRepository.findById(#id).get().username")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or principal.username == @userRepository.findById(#id).get().username")
     public ResponseEntity<User> getUserById(@PathVariable Integer id) {
         Optional<User> user = userService.getUserById(id);
         return user.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
@@ -68,7 +68,7 @@ public class UserController {
     //admin api
     // Disable user by id (chỉ các member và moderator)
     @PostMapping("/{id}/disable")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     public ResponseEntity<User> disableUser(@PathVariable Integer id) {
         User result = userService.disableUser(id);
         if (result == null) return ResponseEntity.status(403).build();
@@ -77,7 +77,7 @@ public class UserController {
 
     // Enable user by id (only if user is Pending and role is Member) 
     @PostMapping("/{id}/enable")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     public ResponseEntity<User> enableUser(@PathVariable Integer id) {
         User result = userService.enableUser(id);
         if (result == null) return ResponseEntity.status(403).build();

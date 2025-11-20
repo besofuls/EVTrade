@@ -41,8 +41,12 @@ public class AutoStatusUpdater {
         Date paymentDeadline = new Date(now.getTime() - 15 * 60 * 1000); // 15p trước
         List<Payment> expiredPayments = paymentRepository.findByStatusAndPaidAtBefore("PENDING", paymentDeadline);
         for (Payment payment : expiredPayments) {
-            payment.setStatus("EXPIRED");
-            paymentRepository.save(payment);
+            String status = payment.getStatus();
+            // Chỉ xử lý nếu chưa COMPLETED, FAILED, PAID và đang PENDING
+            if ("PENDING".equals(status)) {
+                payment.setStatus("EXPIRED");
+                paymentRepository.save(payment);
+            }
         }
 
         // Cập nhật transaction hết hạn

@@ -188,6 +188,25 @@ function AdminDashboard() {
     }
   }, [activeTab, loadAnalytics]);
 
+  useEffect(() => {
+    // Kiểm tra role khi vào dashboard
+    const storedUser = localStorage.getItem("user");
+    let user = null;
+    if (storedUser) {
+      try {
+        user = JSON.parse(storedUser);
+      } catch {
+        user = null;
+      }
+    }
+    const roles = user?.roles?.map(r => r.toUpperCase()) || [];
+    if (roles.includes("MODERATOR") && !roles.includes("ADMIN")) {
+      setActiveTab("users");
+    } else {
+      setActiveTab("overview");
+    }
+  }, []);
+
   return (
     <div className="admin-dashboard-wrapper">
       <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
