@@ -474,51 +474,7 @@ function ProductDetail() {
             </ul>
           </div>
 
-            <div className="pd-details-card" id="pd-comments">
-            <div className="pd-comments-header">
-              <h3>Bình luận & Đánh giá</h3>
-              <span className={`pd-comments-summary ${ratingStats.hasReviews ? "" : "pd-comments-summary-empty"}`.trim()}>
-                {ratingStats.label}
-              </span>
-            </div>
-            <form className="pd-comment-form" onSubmit={handleCommentSubmit}>
-              <textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Viết bình luận của bạn..."
-                rows={3}
-                required
-              />
-              <div className="pd-comment-actions">
-                <div className="pd-rating-select">
-                  <label>Đánh giá:</label>
-                  <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))}>
-                    {[5, 4, 3, 2, 1].map((r) => <option key={r} value={r}>{r} ⭐</option>)}
-                  </select>
-                </div>
-                <button type="submit" className="pd-btn primary" disabled={commentLoading}>
-                  {commentLoading ? "Đang gửi..." : "Gửi bình luận"}
-                </button>
-              </div>
-            </form>
-
-            <div className="pd-comments-list">
-              {comments.length === 0 ? (
-                <div className="pd-comments-empty">Chưa có bình luận nào.</div>
-              ) : (
-                comments.map((cmt) => (
-                  <div className="pd-comment-item" key={cmt.id}>
-                    <div className="pd-comment-meta">
-                      <strong className="pd-comment-username">{cmt.username || "Ẩn danh"}</strong>
-                      <span className="pd-comment-rating">{cmt.rating} ⭐</span>
-                    </div>
-                    <p className="pd-comment-text">{cmt.text}</p>
-                    <span className="pd-comment-date">{fmtDate(cmt.createdAt)}</span>
-                  </div>
-                )))
-              }
-            </div>
-          </div>
+            
         </div>
 
         {/* Modal xác nhận đặt hàng */}
