@@ -209,7 +209,7 @@ public class OrderController {
 
     @Operation(summary = "Admin: Lấy toàn bộ transaction trong hệ thống", description = "Chỉ ADMIN được phép xem tất cả transaction")
     @SecurityRequirement(name = "bearerAuth")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
     @GetMapping("/admin/transactions")
     public ResponseEntity<List<TransactionDTO>> getAllTransactionsForAdmin(Authentication authentication) {
         try {
