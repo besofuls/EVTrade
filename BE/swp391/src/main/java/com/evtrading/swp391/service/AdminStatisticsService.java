@@ -5,6 +5,7 @@ import com.evtrading.swp391.dto.AdminStatsDTO.CategoryListingStat;
 import com.evtrading.swp391.repository.ListingRepository;
 import com.evtrading.swp391.repository.OrderRepository;
 import com.evtrading.swp391.repository.PaymentRepository;
+import com.evtrading.swp391.repository.TransactionRepository;
 import com.evtrading.swp391.repository.projection.CategoryListingCountProjection;
 import java.math.BigDecimal;
 import java.util.List;
@@ -18,13 +19,16 @@ public class AdminStatisticsService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ListingRepository listingRepository;
+    private final TransactionRepository transactionRepository;
 
     public AdminStatisticsService(OrderRepository orderRepository,
                                   PaymentRepository paymentRepository,
-                                  ListingRepository listingRepository) {
+                                  ListingRepository listingRepository,
+                                  TransactionRepository transactionRepository) {
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.listingRepository = listingRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -32,7 +36,7 @@ public class AdminStatisticsService {
         AdminStatsDTO dto = new AdminStatsDTO();
 
         BigDecimal totalOrders = defaultIfNull(orderRepository.sumTotalAmountByStatus("COMPLETED"));
-        BigDecimal totalExtend = defaultIfNull(paymentRepository.sumAmountByTxnRefPrefixAndStatus("EXTEND", "PAID"));
+        BigDecimal totalExtend = defaultIfNull(transactionRepository.sumAmountByReferenceTypeAndStatus("LISTING_EXTEND", "PAID"));
 
         List<CategoryListingCountProjection> projections = listingRepository.countListingsGroupedByCategory("ACTIVE");
         List<CategoryListingStat> categoryStats = projections.stream()
