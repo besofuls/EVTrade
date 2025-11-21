@@ -178,14 +178,6 @@ public class AuthController {
         return ResponseEntity.ok().body("Đăng xuất thành công!");
     }
 
-    @SecurityRequirements
-    @PostMapping("/social")
-  public ResponseEntity<?> social(@RequestBody SocialLoginRequestDTO request) {
-        var token = socialAuthService.login(request);
-        return ResponseEntity.ok(token);
-  }
-
-
  @Value("${spring.security.oauth2.client.registration.google.client-id}")
 private String clientId;
 
