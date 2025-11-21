@@ -35,8 +35,8 @@ public class SpamFilterService {
     public SpamResult check(Listing listing, List<String> imageUrls) {
         SpamResult result = new SpamResult();
 
-        // 1) Duplicate title
-        long sameTitle = listingRepository.countByTitleIgnoreCase(listing.getTitle());
+        // 1) Duplicate title (excluding DELETED and self)
+        long sameTitle = listingRepository.countByTitleAndNotDeletedAndIdNot(listing.getTitle(), listing.getListingID());
         if (sameTitle > 0) {
             result.flagged = true;
             result.reasons.add("Duplicate title");

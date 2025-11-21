@@ -17,6 +17,7 @@ function ProductManagement() {
   const [showRejectInput, setShowRejectInput] = useState(false); // Thêm state để kiểm soát hiển thị ô nhập lý do
   const [zoomImageUrl, setZoomImageUrl] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
   const [showDeleteInput, setShowDeleteInput] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -29,8 +30,10 @@ function ProductManagement() {
         const parsed = JSON.parse(storedUser);
         const roles = Array.isArray(parsed?.roles) ? parsed.roles : [];
         setIsAdmin(roles.some((role) => String(role).toUpperCase().includes("ADMIN")));
+        setIsModerator(roles.some((role) => String(role).toUpperCase().includes("MODERATOR")));
       } catch {
         setIsAdmin(false);
+        setIsModerator(false);
       }
     }
   }, []);
@@ -296,7 +299,7 @@ function ProductManagement() {
                     </button>
                   </>
                 )}
-                {isAdmin && (
+                {(isAdmin || isModerator) && (
                   <button
                     className="admin-user-btn"
                     style={{ background: "#b91c1c", color: "#fff" }}
@@ -359,7 +362,7 @@ function ProductManagement() {
                   </button>
                 </div>
               )}
-              {isAdmin && showDeleteInput && (
+              {(isAdmin || isModerator) && showDeleteInput && (
                 <div style={{ marginTop: 16 }}>
                   <label>Lý do xóa bài đăng:</label>
                   <textarea

@@ -181,10 +181,10 @@ public class ListingController {
         }
     }
 
-    @Operation(summary = "Xóa bài đăng", description = "Admin xóa (soft delete) bài đăng và ghi nhận lý do")
+    @Operation(summary = "Xóa bài đăng", description = "Admin hoặc Moderator xóa (soft delete) bài đăng và ghi nhận lý do")
     @SecurityRequirement(name = "bearerAuth")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
     public ResponseEntity<ListingResponseDTO> deleteListing(
             @PathVariable Integer id,
             @RequestParam(required = false) String reason) {
