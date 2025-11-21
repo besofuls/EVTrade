@@ -31,7 +31,7 @@ public class AutoStatusUpdater {
         Date now = new Date();
 
         // Cập nhật listing hết hạn
-        List<Listing> expiredListings = listingRepository.findByExpiryDateBeforeAndStatusNot(now, "EXPIRED");
+        List<Listing> expiredListings = listingRepository.findByExpiryDateBeforeAndStatus("ACTIVE", now);
         for (Listing listing : expiredListings) {
             listing.setStatus("EXPIRED");
             listingRepository.save(listing);
