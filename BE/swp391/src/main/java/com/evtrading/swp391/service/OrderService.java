@@ -332,6 +332,8 @@ public class OrderService {
 
                 Listing listing = order.getListing();
                 if (listing != null) {
+                    listing.setStartDate(null);
+                    listing.setExpiryDate(null);
                     listing.setStatus("SOLD");
                     listingRepository.save(listing);
                 }
