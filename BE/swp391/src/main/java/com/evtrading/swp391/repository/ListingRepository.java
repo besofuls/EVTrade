@@ -40,5 +40,5 @@ public interface ListingRepository extends JpaRepository<Listing, Integer>, JpaS
            "GROUP BY l.category.categoryName")
     java.util.List<CategoryListingCountProjection> countListingsGroupedByCategory(@Param("status") String status);
     
-    List<Listing> findByExpiryDateBeforeAndStatus(String status, Date expiryDate);
+    List<Listing> findByExpiryDateBeforeAndStatus(Date expiryDate, String status);
 }
