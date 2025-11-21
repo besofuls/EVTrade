@@ -40,9 +40,9 @@ public interface ListingRepository extends JpaRepository<Listing, Integer>, JpaS
            "GROUP BY l.category.categoryName")
     java.util.List<CategoryListingCountProjection> countListingsGroupedByCategory(@Param("status") String status);
     
-    List<Listing> findByExpiryDateBeforeAndStatusNot(Date now, String status);
-
+    
     // Count titles (case-insensitive) excluding DELETED status and a specific ID (for updates)
     @Query("SELECT COUNT(l) FROM Listing l WHERE LOWER(l.title) = LOWER(:title) AND l.status <> 'DELETED' AND (:excludeId IS NULL OR l.listingID <> :excludeId)")
     long countByTitleAndNotDeletedAndIdNot(@Param("title") String title, @Param("excludeId") Integer excludeId);
+    List<Listing> findByExpiryDateBeforeAndStatus(Date expiryDate, String status);
 }
