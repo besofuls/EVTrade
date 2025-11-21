@@ -159,10 +159,16 @@ const apiService = {
   },
 
   get_reviews_for_listing: async function (listingId) {
+    const token = this.getAuthToken();
+    const headers = {
+      Accept: "*/*",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${API_BASE_URL}/reviews/listing/${listingId}`, {
-      headers: {
-        Accept: "*/*",
-      },
+      headers,
     });
 
     if (res.status === 204) {

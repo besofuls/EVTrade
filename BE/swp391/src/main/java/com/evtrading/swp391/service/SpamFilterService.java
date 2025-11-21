@@ -18,7 +18,7 @@ public class SpamFilterService {
     private final ListingImageRepository listingImageRepository;
     private final SystemConfigRepository systemConfigRepository;
 
-    // Simple banned keywords list (could be loaded from SystemConfig)
+    //  banned keywords list (could be loaded from SystemConfig)
     private final List<String> bannedKeywords = List.of("liên hệ ngay", "hot deal", "siêu rẻ", "hot", "contact now", "sale");
 
     public SpamFilterService(ListingRepository listingRepository, ListingImageRepository listingImageRepository, SystemConfigRepository systemConfigRepository) {
@@ -66,12 +66,12 @@ public class SpamFilterService {
             if (opt.isPresent()) threshold = Integer.parseInt(opt.get().getConfigValue());
         } catch (Exception ignored) {}
         Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.HOUR, -24);
+        cal.add(Calendar.MINUTE, -5);
         Date since = cal.getTime();
         long recentCount = listingRepository.countByUserUserIDAndCreatedAtAfter(listing.getUser().getUserID(), since);
         if (recentCount >= threshold) {
             result.flagged = true;
-            result.reasons.add("Too many posts in 24h");
+            result.reasons.add("Too many posts in 5 minutes");
         }
 
         // Price anomaly check removed — no longer flagging by price

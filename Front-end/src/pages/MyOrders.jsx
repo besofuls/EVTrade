@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import apiService from "../services/apiService";
 import Header from "../components/Header";
+import { useToast } from "../contexts/ToastContext";
 import "./MyOrders.css";
 
 function MyOrders() {
@@ -15,6 +16,15 @@ function MyOrders() {
   // State mới để lưu chi tiết bài đăng và trạng thái tải của modal
   const [listingDetails, setListingDetails] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // State cho phần đánh giá
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+
+  const { showToast } = useToast();
 
   useEffect(() => {
     async function fetchOrders() {
@@ -49,16 +59,58 @@ function MyOrders() {
     setShowDetailsModal(true);
     setModalLoading(true);
     setListingDetails(null); // Reset chi tiết cũ
+    setHasReviewed(false);
 
     try {
-      // Gọi API để lấy chi tiết bài đăng bằng listingId
-      const details = await apiService.getProductPostById(order.listingId);
+      // Gọi API để lấy chi tiết bài đăng và danh sách đánh giá
+      const [details, reviews] = await Promise.all([
+        apiService.getProductPostById(order.listingId),
+        apiService.get_reviews_for_listing(order.listingId).catch(() => [])
+      ]);
       setListingDetails(details);
+
+      // Kiểm tra xem bài đăng đã có đánh giá nào chưa (1 bài đăng chỉ có 1 review)
+      if (Array.isArray(reviews) && reviews.length > 0) {
+        setHasReviewed(true);
+      } else {
+        setHasReviewed(false);
+      }
     } catch (err) {
       console.error("Không thể tải chi tiết bài đăng:", err);
       // Có thể thêm state để hiển thị lỗi trong modal
     } finally {
       setModalLoading(false);
+    }
+  };
+
+  const handleOpenReviewModal = () => {
+    setShowReviewModal(true);
+    setReviewRating(5);
+    setReviewComment("");
+  };
+
+  const handleCloseReviewModal = () => {
+    setShowReviewModal(false);
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!selectedOrder) return;
+
+    setSubmittingReview(true);
+    try {
+      await apiService.create_new_review({
+        listingId: selectedOrder.listingId,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      showToast("Đánh giá thành công!", "success");
+      setHasReviewed(true);
+      setShowReviewModal(false);
+    } catch (err) {
+      showToast(err.message || "Đánh giá thất bại", "error");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -182,10 +234,71 @@ function MyOrders() {
                 >
                   Đi đến trang sản phẩm
                 </Link>
+
+                {selectedOrder.status === "COMPLETED" && (
+                  <div style={{ marginTop: "1rem" }}>
+                    {hasReviewed ? (
+                      <button className="review-btn disabled" disabled>
+                        Đã đánh giá
+                      </button>
+                    ) : (
+                      <button className="review-btn" onClick={handleOpenReviewModal}>
+                        Đánh giá sản phẩm
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <p>Không thể tải chi tiết bài đăng.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Đánh giá */}
+      {showReviewModal && (
+        <div className="modal-overlay" onClick={handleCloseReviewModal}>
+          <div className="modal-content review-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={handleCloseReviewModal}>
+              &times;
+            </button>
+            <h3>Đánh giá sản phẩm</h3>
+            <form onSubmit={handleSubmitReview}>
+              <div className="form-group">
+                <label>Đánh giá:</label>
+                <select
+                  value={reviewRating}
+                  onChange={(e) => setReviewRating(Number(e.target.value))}
+                  className="form-control"
+                >
+                  <option value="5">5 ⭐ - Tuyệt vời</option>
+                  <option value="4">4 ⭐ - Tốt</option>
+                  <option value="3">3 ⭐ - Bình thường</option>
+                  <option value="2">2 ⭐ - Tệ</option>
+                  <option value="1">1 ⭐ - Rất tệ</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Nhận xét:</label>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  className="form-control"
+                  rows="4"
+                  placeholder="Chia sẻ trải nghiệm của bạn..."
+                  required
+                ></textarea>
+              </div>
+              <div className="modal-actions">
+                <button type="submit" className="submit-btn" disabled={submittingReview}>
+                  {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+                </button>
+                <button type="button" className="cancel-btn" onClick={handleCloseReviewModal}>
+                  Hủy
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
