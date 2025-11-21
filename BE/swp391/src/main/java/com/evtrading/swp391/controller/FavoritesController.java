@@ -1,6 +1,6 @@
 package com.evtrading.swp391.controller;
 
-import com.evtrading.swp391.entity.Listing;
+import com.evtrading.swp391.dto.ListingResponseDTO;
 import com.evtrading.swp391.service.FavoritesService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -88,13 +88,13 @@ public class FavoritesController {
      * - Trả 200 và mảng Listing khi thành công.
      */
     @GetMapping("/listings")
-    public ResponseEntity<List<Listing>> myFavorites(Principal principal) {
+    public ResponseEntity<List<ListingResponseDTO>> myFavorites(Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(401).build();
         }
         try {
             String username = principal.getName();
-            List<Listing> listings = favoritesService.getFavoriteListings(username);
+            List<ListingResponseDTO> listings = favoritesService.getFavoriteListings(username);
             return ResponseEntity.ok(listings);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -114,6 +114,21 @@ public class FavoritesController {
             String username = principal.getName();
             boolean isFavorited = favoritesService.isFavorited(username, listingId);
             return ResponseEntity.ok(Map.of("following", isFavorited));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(500).body("{\"error\":\"Internal server error\"}");
+        }
+    }
+
+    @GetMapping("/listings/{listingId}/check")
+    public ResponseEntity<?> checkFavorite(@PathVariable Integer listingId, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body("{\"error\":\"Unauthorized\"}");
+        }
+        try {
+            String username = principal.getName();
+            boolean isFavorited = favoritesService.isFavorited(username, listingId);
+            return ResponseEntity.ok().body(Map.of("favorited", isFavorited));
         } catch (Exception ex) {
             ex.printStackTrace();
             return ResponseEntity.status(500).body("{\"error\":\"Internal server error\"}");

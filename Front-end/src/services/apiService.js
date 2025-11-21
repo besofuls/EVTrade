@@ -957,6 +957,57 @@ const apiService = {
     return await res.json();
   },
 
+  // Favorites API
+  addFavorite: async function (listingId) {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+    const res = await fetch(`${API_BASE_URL}/favorites/listings/${listingId}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error("Không thể thêm vào danh sách yêu thích");
+    return await res.json();
+  },
+
+  removeFavorite: async function (listingId) {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+    const res = await fetch(`${API_BASE_URL}/favorites/listings/${listingId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error("Không thể xóa khỏi danh sách yêu thích");
+    return await res.json();
+  },
+
+  getFavorites: async function () {
+    const token = this.getAuthToken();
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+    const res = await fetch(`${API_BASE_URL}/favorites/listings`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error("Không thể tải danh sách yêu thích");
+    return await res.json();
+  },
+
+  checkFavorite: async function (listingId) {
+    const token = this.getAuthToken();
+    if (!token) return { favorited: false }; // Not logged in -> not favorited
+    const res = await fetch(`${API_BASE_URL}/favorites/listings/${listingId}/check`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) return { favorited: false };
+    return await res.json();
+  },
+
   ///////////////////////////////////////////////////////////////////////////////
 };
 

@@ -162,6 +162,9 @@ function Header() {
                     <div className="dropdown-item" onClick={() => { navigate('/my-complaints'); setShowUserMenu(false); }}>
                       <span>⚠️</span> Khiếu nại của tôi
                     </div>
+                    <div className="dropdown-item" onClick={() => { navigate('/my-favorites'); setShowUserMenu(false); }}>
+                      <span>❤️</span> Bài đăng đã thích
+                    </div>
                     {/* Thêm nút chuyển qua admin nếu là admin hoặc moderator */}
                     {(user?.roles?.includes("ADMIN") || user?.roles?.includes("MODERATOR")) && (
                       <div className="dropdown-item" onClick={() => { navigate('/admin'); setShowUserMenu(false); }}>

@@ -80,8 +80,8 @@ function ProductDetail() {
 
   const fetchFollowing = async () => {
     try {
-      const res = await apiService.isFollowingListing(id);
-      setIsFollowing(!!res?.following);
+      const res = await apiService.checkFavorite(id);
+      setIsFollowing(!!res?.favorited);
     } catch {
       setIsFollowing(false);
     }
@@ -290,17 +290,17 @@ function ProductDetail() {
     setFollowLoading(true);
     try {
       if (isFollowing) {
-        await apiService.unfollowListing(id);
+        await apiService.removeFavorite(id);
         showToast("Đã bỏ theo dõi bài đăng.", "info");
         setIsFollowing(false); // Cập nhật state sau khi thành công
       } else {
-        await apiService.followListing(id);
+        await apiService.addFavorite(id);
         showToast("Đã theo dõi bài đăng!", "success");
         setIsFollowing(true); // Cập nhật state sau khi thành công
       }
     } catch (err) {
       // Hiển thị lỗi từ backend nếu có, nếu không thì hiển thị lỗi mặc định
-      const errorMessage = await err.text().catch(() => err.message || "Thao tác thất bại.");
+      const errorMessage = err.message || "Thao tác thất bại.";
       showToast(errorMessage, "error");
       
       // Đồng bộ lại trạng thái với server khi có lỗi

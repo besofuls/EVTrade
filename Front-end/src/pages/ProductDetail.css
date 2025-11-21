@@ -264,11 +264,11 @@
   background-color: #e5e7eb;
 }
 .pd-btn.follow.active {
-  background-color: #fee2e2;
-  color: #dc2626;
+  background-color: #e5e7eb;
+  color: #6b7280;
 }
 .pd-btn.follow.active:hover:not(:disabled) {
-  background-color: #fecaca;
+  background-color: #d1d5db;
 }
 .pd-btn.complaint {
   background-color: #f3f4f6;

@@ -1,10 +1,14 @@
 package com.evtrading.swp391.service;
 
+import com.evtrading.swp391.dto.ListingResponseDTO;
 import com.evtrading.swp391.entity.Favorites;
 import com.evtrading.swp391.entity.FavoritesId;
 import com.evtrading.swp391.entity.Listing;
+import com.evtrading.swp391.entity.ListingImage;
 import com.evtrading.swp391.entity.User;
+import com.evtrading.swp391.mapper.ListingMapper;
 import com.evtrading.swp391.repository.FavoritesRepository;
+import com.evtrading.swp391.repository.ListingImageRepository;
 import com.evtrading.swp391.repository.ListingRepository;
 import com.evtrading.swp391.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -19,11 +23,15 @@ public class FavoritesService {
     private final FavoritesRepository favoritesRepository;
     private final UserRepository userRepository;
     private final ListingRepository listingRepository;
+    private final ListingImageRepository listingImageRepository;
+    private final ListingMapper listingMapper;
 
-    public FavoritesService(FavoritesRepository favoritesRepository, UserRepository userRepository, ListingRepository listingRepository) {
+    public FavoritesService(FavoritesRepository favoritesRepository, UserRepository userRepository, ListingRepository listingRepository, ListingImageRepository listingImageRepository, ListingMapper listingMapper) {
         this.favoritesRepository = favoritesRepository;
         this.userRepository = userRepository;
         this.listingRepository = listingRepository;
+        this.listingImageRepository = listingImageRepository;
+        this.listingMapper = listingMapper;
     }
 
     /**
@@ -102,11 +110,16 @@ public class FavoritesService {
      * Trả về danh sách Listing mà user đã favorite.
      * Trả về danh sách rỗng nếu user không tồn tại hoặc user chưa có favorite nào.
      */
-    public List<Listing> getFavoriteListings(String username) {
+    public List<ListingResponseDTO> getFavoriteListings(String username) {
         Optional<User> u = userRepository.findByUsername(username);
         if (u.isEmpty()) return List.of();
         List<Favorites> favs = favoritesRepository.findByIdUserID(u.get().getUserID());
-        return favs.stream().map(Favorites::getListing).collect(Collectors.toList());
+        
+        return favs.stream().map(fav -> {
+            Listing listing = fav.getListing();
+            List<ListingImage> images = listingImageRepository.findByListingListingID(listing.getListingID());
+            return listingMapper.toDto(listing, images);
+        }).collect(Collectors.toList());
     }
 
     /**

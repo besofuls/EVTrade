@@ -16,6 +16,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import MyListings from './pages/MyListings';
 import MyOrders from './pages/MyOrders';
 import MyComplaints from './pages/MyComplaints';
+import MyFavorites from './pages/MyFavorites';
 import SellerProfile from './pages/SellerProfile';
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
           <Route path="/my-listings" element={<MyListings />} />
           <Route path="/my-orders" element={<MyOrders />} />
           <Route path="/my-complaints" element={<MyComplaints />} />
+          <Route path="/my-favorites" element={<MyFavorites />} />
           <Route path="/seller/:sellerId" element={<SellerProfile />} />
         </Routes>
       </Router>
