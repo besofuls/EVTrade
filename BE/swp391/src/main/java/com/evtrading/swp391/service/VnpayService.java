@@ -5,7 +5,6 @@ import com.evtrading.swp391.entity.Payment;
 import com.evtrading.swp391.entity.Transaction;
 import com.evtrading.swp391.repository.PaymentRepository;
 import com.evtrading.swp391.repository.TransactionRepository;
-import com.evtrading.swp391.service.SystemConfigService;
 import com.evtrading.swp391.util.VnpayUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
