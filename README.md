@@ -1,6 +1,5 @@
 # Second-hand EV & Battery Trading Platform
 
-**Role:** Full-stack Developer
 **Tech Stack:** Java, ReactJS, SQLServer.
 
 ## Description
